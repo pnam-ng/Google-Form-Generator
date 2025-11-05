@@ -9,6 +9,8 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
+        # ⚠️ IMPORTANT: Set this value in Render Dashboard → Environment tab
+        # Do NOT hardcode API keys here. Use Render Dashboard instead.
       - key: SECRET_KEY
         generateValue: true
       - key: FLASK_ENV

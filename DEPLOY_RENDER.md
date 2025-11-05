@@ -51,21 +51,38 @@ git push -u origin main
 
 8. **Click:** "Create Web Service"
 
-## Step 3: Upload Credentials
+## Step 3: Upload Credentials (NO SHELL ACCESS NEEDED!)
 
-After deployment starts, you need to upload `credentials.json`:
+Since Render's free tier doesn't have shell access, use **Environment Variables** instead:
 
-1. Go to your service dashboard
-2. Click "Shell" tab (or use SSH)
-3. Upload `credentials.json`:
-   ```bash
-   # In Render Shell
-   cat > credentials.json << 'EOF'
-   [paste your credentials.json content here]
-   EOF
+### Option A: Environment Variables (Recommended - Free & Secure)
+
+1. **Open your local `credentials.json`** and extract these values:
+   - `client_id` (from `installed.client_id` or `web.client_id`)
+   - `client_secret` (from `installed.client_secret` or `web.client_secret`)
+   - `project_id` (root level)
+
+2. **In Render Dashboard → Environment tab**, add these variables:
+   ```
+   GOOGLE_CLIENT_ID = your_client_id_here
+   GOOGLE_CLIENT_SECRET = your_client_secret_here
+   GOOGLE_PROJECT_ID = your_project_id_here
    ```
 
-4. Or use Render's file system if available
+3. **The app will automatically create `credentials.json` from these variables!**
+
+### Option B: Add to Git (Testing Only - Private Repos)
+
+⚠️ **Only for private repositories!**
+
+```bash
+# Temporarily remove from .gitignore
+git add credentials.json
+git commit -m "Add credentials for Render"
+git push
+```
+
+Render will automatically deploy with the file.
 
 ## Step 4: Test
 

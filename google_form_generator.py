@@ -4,6 +4,7 @@ Cross-platform compatible (Windows, macOS, Linux)
 """
 
 import os
+import json
 import pickle
 from typing import List, Dict, Optional, Any
 from google.auth.transport.requests import Request
@@ -37,7 +38,39 @@ class GoogleFormGenerator:
         self.service = None
         self.drive_service = None
         self.docs_service = None
+        
+        # Create credentials.json from environment variables if file doesn't exist
+        if not os.path.exists(self.credentials_file):
+            self._create_credentials_from_env()
+        
         self._authenticate()
+    
+    def _create_credentials_from_env(self):
+        """Create credentials.json from environment variables if available."""
+        client_id = os.getenv('GOOGLE_CLIENT_ID')
+        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+        project_id = os.getenv('GOOGLE_PROJECT_ID')
+        
+        # Only create if all required variables are set
+        if client_id and client_secret and project_id:
+            credentials_data = {
+                "installed": {
+                    "client_id": client_id,
+                    "project_id": project_id,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "client_secret": client_secret,
+                    "redirect_uris": ["http://localhost"]
+                }
+            }
+            
+            try:
+                with open(self.credentials_file, 'w') as f:
+                    json.dump(credentials_data, f, indent=2)
+                print(f"✅ Created {self.credentials_file} from environment variables")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not create credentials.json from environment: {e}")
     
     def _authenticate(self):
         """Authenticate with Google APIs using OAuth 2.0."""

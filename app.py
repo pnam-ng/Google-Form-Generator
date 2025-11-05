@@ -83,11 +83,18 @@ def init_ai_creator():
     """Initialize AI Form Creator."""
     global ai_creator
     if ai_creator is None:
+        # Check if API key is provided
+        if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
+            print("❌ Error: GEMINI_API_KEY environment variable is not set or is empty")
+            print("   Please set GEMINI_API_KEY environment variable before running the app")
+            return False
+        
         try:
             ai_creator = AIFormCreator(GEMINI_API_KEY)
             return True
         except Exception as e:
-            print(f"Error initializing AI Creator: {e}")
+            print(f"❌ Error initializing AI Creator: {e}")
+            print(f"   Please check that your GEMINI_API_KEY is valid")
             return False
     return True
 
@@ -117,9 +124,14 @@ def create_from_text():
             }), 400
         
         if not init_ai_creator():
+            error_msg = 'Failed to initialize AI creator. '
+            if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
+                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it and restart the server.'
+            else:
+                error_msg += 'Please check your GEMINI_API_KEY is valid.'
             return jsonify({
                 'success': False,
-                'error': 'Failed to initialize AI creator. Please check your credentials.',
+                'error': error_msg,
                 'logs': []
             }), 500
         
@@ -185,9 +197,14 @@ def create_from_file():
             }), 400
         
         if not init_ai_creator():
+            error_msg = 'Failed to initialize AI creator. '
+            if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
+                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it and restart the server.'
+            else:
+                error_msg += 'Please check your GEMINI_API_KEY is valid.'
             return jsonify({
                 'success': False,
-                'error': 'Failed to initialize AI creator. Please check your credentials.'
+                'error': error_msg
             }), 500
         
         # Save uploaded file
@@ -261,9 +278,14 @@ def create_form_with_questions():
             }), 400
         
         if not init_ai_creator():
+            error_msg = 'Failed to initialize AI creator. '
+            if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
+                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it and restart the server.'
+            else:
+                error_msg += 'Please check your GEMINI_API_KEY is valid.'
             return jsonify({
                 'success': False,
-                'error': 'Failed to initialize AI creator. Please check your credentials.',
+                'error': error_msg,
                 'logs': []
             }), 500
         
@@ -362,9 +384,14 @@ def create_from_docs():
             }), 400
         
         if not init_ai_creator():
+            error_msg = 'Failed to initialize AI creator. '
+            if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
+                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it and restart the server.'
+            else:
+                error_msg += 'Please check your GEMINI_API_KEY is valid.'
             return jsonify({
                 'success': False,
-                'error': 'Failed to initialize AI creator. Please check your credentials.',
+                'error': error_msg,
                 'logs': []
             }), 500
         
@@ -424,9 +451,14 @@ def create_from_script():
             }), 400
         
         if not init_ai_creator():
+            error_msg = 'Failed to initialize form creator. '
+            if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
+                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it and restart the server.'
+            else:
+                error_msg += 'Please check your GEMINI_API_KEY is valid.'
             return jsonify({
                 'success': False,
-                'error': 'Failed to initialize form creator. Please check your credentials.',
+                'error': error_msg,
                 'logs': []
             }), 500
         
