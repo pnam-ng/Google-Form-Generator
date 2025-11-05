@@ -25,14 +25,18 @@ class GoogleFormGenerator:
         'https://www.googleapis.com/auth/documents.readonly'  # For reading Google Docs
     ]
     
-    def __init__(self, credentials_file: str = 'credentials.json', token_file: str = 'token.pickle'):
+    def __init__(self, credentials_file: str = None, token_file: str = 'token.pickle'):
         """
         Initialize the Google Form Generator.
         
         Args:
-            credentials_file: Path to OAuth 2.0 credentials JSON file
+            credentials_file: Path to OAuth 2.0 credentials JSON file (optional, will auto-detect)
             token_file: Path to store authentication token
         """
+        # Auto-detect credentials file location
+        if credentials_file is None:
+            credentials_file = self._find_credentials_file()
+        
         self.credentials_file = credentials_file
         self.token_file = token_file
         self.service = None
@@ -44,6 +48,31 @@ class GoogleFormGenerator:
             self._create_credentials_from_env()
         
         self._authenticate()
+    
+    def _find_credentials_file(self):
+        """Find credentials file in common locations."""
+        # Check environment variable first
+        env_path = os.getenv('CREDENTIALS_FILE_PATH')
+        if env_path and os.path.exists(env_path):
+            print(f"✅ Found credentials at: {env_path} (from CREDENTIALS_FILE_PATH)")
+            return env_path
+        
+        # Check common locations in order
+        possible_locations = [
+            'credentials.json',  # Default location (project root)
+            '/etc/secrets/credentials.json',  # Render secrets path
+            '/opt/render/project/src/credentials.json',  # Render project path
+            os.path.expanduser('~/credentials.json'),  # Home directory
+        ]
+        
+        for location in possible_locations:
+            if os.path.exists(location):
+                print(f"✅ Found credentials at: {location}")
+                return location
+        
+        # If not found, return default (will try to create from env vars)
+        print("⚠️  Credentials file not found, will try to create from environment variables")
+        return 'credentials.json'
     
     def _create_credentials_from_env(self):
         """Create credentials.json from environment variables if available."""

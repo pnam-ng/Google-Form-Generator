@@ -29,15 +29,23 @@ class GeminiFormGenerator:
             'gemini-pro'
         ]
         self.model = None
+        last_error = None
         for model_name in model_names:
             try:
                 self.model = genai.GenerativeModel(model_name)
+                print(f"✅ Using Gemini model: {model_name}")
                 break
             except Exception as e:
+                last_error = str(e)
+                print(f"⚠️  Could not use {model_name}: {last_error}")
                 continue
         
         if self.model is None:
-            raise ValueError("Could not initialize any Gemini model. Please check your API key.")
+            error_msg = f"Could not initialize any Gemini model. "
+            if last_error:
+                error_msg += f"Last error: {last_error}. "
+            error_msg += "Please check your API key is valid and has access to Gemini API."
+            raise ValueError(error_msg)
         
         # System prompt for form generation
         self.system_prompt = """You are an expert at creating Google Forms. 

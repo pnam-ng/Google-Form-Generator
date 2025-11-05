@@ -92,9 +92,22 @@ def init_ai_creator():
         try:
             ai_creator = AIFormCreator(GEMINI_API_KEY)
             return True
+        except ValueError as e:
+            error_msg = str(e)
+            print(f"❌ Error initializing AI Creator: {error_msg}")
+            if "API key" in error_msg.lower() or "invalid" in error_msg.lower():
+                print(f"   Your GEMINI_API_KEY may be invalid or expired.")
+                print(f"   Get a new key at: https://aistudio.google.com/app/apikey")
+            return False
         except Exception as e:
-            print(f"❌ Error initializing AI Creator: {e}")
-            print(f"   Please check that your GEMINI_API_KEY is valid")
+            error_msg = str(e)
+            print(f"❌ Error initializing AI Creator: {error_msg}")
+            print(f"   Error type: {type(e).__name__}")
+            print(f"   Please check:")
+            print(f"   1. GEMINI_API_KEY is set correctly")
+            print(f"   2. API key is valid (get new one at https://aistudio.google.com/app/apikey)")
+            print(f"   3. API key has access to Gemini API")
+            print(f"   4. Internet connection is working")
             return False
     return True
 
