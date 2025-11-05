@@ -55,7 +55,19 @@ class GoogleFormGenerator:
             if not os.path.exists(self.credentials_file):
                 self._create_credentials_from_env()
             
-            self._authenticate()
+            try:
+                self._authenticate()
+            except Exception as auth_error:
+                # Re-raise with more context for better error messages
+                error_msg = str(auth_error).lower()
+                if 'browser' in error_msg or 'runnable' in error_msg:
+                    # This will be caught by app.py's error handler
+                    raise RuntimeError(
+                        f"OAuth authentication failed: {auth_error}. "
+                        "This is normal on headless servers like Render. "
+                        "Check logs for authorization URL and visit it in your browser."
+                    ) from auth_error
+                raise
     
     def _find_credentials_file(self):
         """Find credentials file in common locations."""
@@ -163,17 +175,37 @@ class GoogleFormGenerator:
                             print("="*70)
                             print("   Using console-based authentication...")
                             print("   This is normal on Render and other headless servers.\n")
-                            print("   Please check the logs below for the authorization URL.")
-                            print("   You'll need to visit the URL in your browser to authorize.\n")
+                            print("   🔗 IMPORTANT: Look for the authorization URL below!")
+                            print("   📋 You'll need to:")
+                            print("      1. Copy the authorization URL from the logs")
+                            print("      2. Visit it in your browser")
+                            print("      3. Authorize the application")
+                            print("      4. Copy the authorization code")
+                            print("      5. The app will complete authentication\n")
                             print("="*70 + "\n")
                             try:
+                                # run_console() will print the URL and wait for input
                                 creds = flow.run_console()
                                 print("\n✅ Authentication successful!")
                             except Exception as console_error:
+                                error_msg = str(console_error).lower()
                                 print(f"\n❌ Console authentication failed: {console_error}")
-                                print("   Please check Render logs for the authorization URL")
-                                print("   and follow the instructions to complete authentication.\n")
-                                raise
+                                print("\n" + "="*70)
+                                print("📋 MANUAL AUTHENTICATION REQUIRED")
+                                print("="*70)
+                                print("   1. Check Render logs above for the authorization URL")
+                                print("   2. The URL should start with: https://accounts.google.com/o/oauth2/auth")
+                                print("   3. Copy the entire URL and visit it in your browser")
+                                print("   4. Authorize the application")
+                                print("   5. Copy the authorization code from the success page")
+                                print("   6. The app will retry authentication automatically")
+                                print("="*70 + "\n")
+                                # Re-raise with clearer message
+                                raise RuntimeError(
+                                    f"OAuth console authentication failed: {console_error}. "
+                                    "Please check Render logs for the authorization URL (look for 'Please visit this URL to authorize'). "
+                                    "Visit the URL in your browser to authorize, then the app will retry."
+                                ) from console_error
                         else:
                             raise browser_error
                 except Exception as e:

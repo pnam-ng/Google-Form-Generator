@@ -115,17 +115,24 @@ def init_ai_creator():
             error_lower = error_msg.lower()
             
             # Check if it's an OAuth/browser authentication error
-            if 'browser' in error_lower or 'runnable' in error_lower or 'oauth' in error_lower:
-                print(f"❌ OAuth Authentication Error: {error_msg}")
+            if 'browser' in error_lower or 'runnable' in error_lower or 'oauth' in error_lower or 'authentication failed' in error_lower:
+                print(f"\n" + "="*70)
+                print(f"❌ OAuth Authentication Error")
+                print("="*70)
+                print(f"   Error: {error_msg}")
                 print(f"   Error type: {type(e).__name__}")
-                print(f"\n   This is an OAuth authentication issue, not a Gemini API issue.")
+                print(f"\n   ⚠️  This is an OAuth authentication issue, NOT a Gemini API issue!")
                 print(f"   The app needs to authenticate with Google on first startup.")
-                print(f"\n   How to fix:")
-                print(f"   1. Check Render logs for the authorization URL")
-                print(f"   2. Visit the URL in your browser to authorize")
-                print(f"   3. The app will automatically use console-based authentication")
-                print(f"   4. Or upload an existing token.pickle file to Render")
-                print(f"\n   See: FIX_HEADLESS_AUTH.md for detailed instructions")
+                print(f"\n   📋 How to fix:")
+                print(f"   1. Scroll up in Render logs to find the authorization URL")
+                print(f"   2. The URL should appear after 'Please visit this URL to authorize'")
+                print(f"   3. Copy the entire URL and visit it in your browser")
+                print(f"   4. Authorize the application")
+                print(f"   5. Copy the authorization code from the success page")
+                print(f"   6. The app will automatically complete authentication")
+                print(f"\n   💡 Alternative: Upload an existing token.pickle file to Render")
+                print(f"   📖 See: FIX_HEADLESS_AUTH.md or FIX_RENDER_OAUTH_BROWSER_ERROR.md")
+                print("="*70 + "\n")
                 return False
             
             # Check if it's a credentials file error
