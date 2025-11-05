@@ -138,3 +138,4 @@ if __name__ == '__main__':
     else:
         print("\n⚠️  Please complete the setup before using the generator.")
 
+

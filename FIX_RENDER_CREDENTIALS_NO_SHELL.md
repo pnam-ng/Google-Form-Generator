@@ -229,3 +229,4 @@ For most users, I recommend **Option 3 (Environment Variables)** as it's:
 - ✅ Works on free tier
 - ✅ No shell access needed
 
+

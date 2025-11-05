@@ -1053,3 +1053,52 @@ document.getElementById('try-again-btn').addEventListener('click', () => {
     hideResults();
 });
 
+// Authentication functions
+async function checkAuthStatus() {
+    try {
+        const response = await fetch('/api/auth/status');
+        const data = await response.json();
+        
+        if (data.authenticated) {
+            // Update UI if user is logged in
+            updateAuthUI(data.user_email);
+        }
+    } catch (error) {
+        console.error('Error checking auth status:', error);
+    }
+}
+
+function updateAuthUI(userEmail) {
+    const authSection = document.getElementById('auth-section');
+    if (!authSection) return;
+    
+    // Update auth section if needed (for dynamic updates)
+    // The initial state is set by server-side template
+}
+
+async function logout() {
+    try {
+        const response = await fetch('/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            // Reload page to update UI
+            window.location.reload();
+        } else {
+            // If POST fails, try GET redirect
+            window.location.href = '/auth/logout';
+        }
+    } catch (error) {
+        console.error('Error logging out:', error);
+        // Fallback to GET redirect
+        window.location.href = '/auth/logout';
+    }
+}
+
+// Check auth status on page load
+document.addEventListener('DOMContentLoaded', checkAuthStatus);
+

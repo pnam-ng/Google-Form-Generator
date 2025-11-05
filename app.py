@@ -5,7 +5,7 @@ Cross-platform web UI for non-technical users
 
 import os
 import sys
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
 from werkzeug.utils import secure_filename
 import traceback
 import io
@@ -17,6 +17,15 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(32).hex())
+
+# Allow insecure transport (HTTP) in development only
+# IMPORTANT: This should NEVER be set in production!
+FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+if FLASK_ENV == 'development' or DEBUG:
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+    print("⚠️  Development mode: OAuth insecure transport enabled (HTTP allowed)")
+    print("   ⚠️  WARNING: This should NEVER be enabled in production!")
 
 # Security headers
 @app.after_request
@@ -36,8 +45,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'csv', 'xlsx', 'xls'}
 
-# Gemini API Key - Load from environment variable
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+# Gemini API Key - Load from environment variable (support both names)
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY', '')
 
 # Initialize AI Form Creator
 ai_creator = None
@@ -85,12 +94,14 @@ def init_ai_creator():
     if ai_creator is None:
         # Check if API key is provided
         if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
-            print("❌ Error: GEMINI_API_KEY environment variable is not set or is empty")
-            print("   Please set GEMINI_API_KEY environment variable before running the app")
+            print("❌ Error: GEMINI_API_KEY or GOOGLE_API_KEY environment variable is not set or is empty")
+            print("   Please set GEMINI_API_KEY (or GOOGLE_API_KEY) environment variable before running the app")
+            print("   Get your key from: https://aistudio.google.com/app/apikey")
             return False
         
         try:
-            ai_creator = AIFormCreator(GEMINI_API_KEY)
+            # Pass None to let AIFormCreator check environment variables itself
+            ai_creator = AIFormCreator(GEMINI_API_KEY if GEMINI_API_KEY else None)
             return True
         except ValueError as e:
             error_msg = str(e)
@@ -118,7 +129,10 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     """Main page."""
-    return render_template('index.html')
+    # Check if user is authenticated
+    user_creds = session.get('user_credentials')
+    user_email = user_creds.get('user_email', None) if user_creds else None
+    return render_template('index.html', user_logged_in=user_creds is not None, user_email=user_email)
 
 @app.route('/api/create-from-text', methods=['POST'])
 def create_from_text():
@@ -314,8 +328,19 @@ def create_form_with_questions():
             log_capture.write(f"📋 Form Title: {title}\n")
             log_capture.write(f"❓ Number of questions: {len(questions)}\n")
             
+            # Get user credentials (for per-user authentication)
+            user_creds = get_user_credentials()
+            
+            # Create form generator with user credentials (if available) or use default
+            if user_creds:
+                log_capture.write("👤 Using your Google account credentials\n")
+                form_generator = GoogleFormGenerator(user_credentials=user_creds)
+            else:
+                log_capture.write("🔧 Using server account credentials\n")
+                form_generator = ai_creator.form_generator
+            
             # Create form
-            form = ai_creator.form_generator.create_form(title, description)
+            form = form_generator.create_form(title, description)
             
             # Add questions with updated required settings
             log_capture.write("\n➕ Adding questions...\n")
@@ -396,17 +421,22 @@ def create_from_docs():
                 'logs': []
             }), 400
         
+        # Initialize AI creator with detailed logging
+        log_capture.write("🔧 Initializing AI creator...\n")
         if not init_ai_creator():
             error_msg = 'Failed to initialize AI creator. '
             if not GEMINI_API_KEY or GEMINI_API_KEY.strip() == '':
-                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it and restart the server.'
+                error_msg += 'GEMINI_API_KEY environment variable is not set. Please set it in Render Dashboard → Environment tab and restart the server.'
             else:
-                error_msg += 'Please check your GEMINI_API_KEY is valid.'
+                error_msg += f'Please check your GEMINI_API_KEY is valid. Current key starts with: {GEMINI_API_KEY[:10]}...'
+            log_capture.write(f"❌ {error_msg}\n")
             return jsonify({
                 'success': False,
                 'error': error_msg,
-                'logs': []
+                'logs': log_capture.get_logs()
             }), 500
+        
+        log_capture.write("✅ AI creator initialized successfully\n")
         
         # Capture logs during form structure generation
         with redirect_stdout(log_capture):
@@ -515,8 +545,19 @@ def create_from_script():
             log_capture.write(f"📝 Description: {description[:100]}..." if len(description) > 100 else f"📝 Description: {description}\n")
             log_capture.write(f"❓ Number of questions: {len(questions)}\n")
             
+            # Get user credentials (for per-user authentication)
+            user_creds = get_user_credentials()
+            
+            # Create form generator with user credentials (if available) or use default
+            if user_creds:
+                log_capture.write("👤 Using your Google account credentials\n")
+                form_generator = GoogleFormGenerator(user_credentials=user_creds)
+            else:
+                log_capture.write("🔧 Using server account credentials\n")
+                form_generator = ai_creator.form_generator
+            
             # Create form
-            form = ai_creator.form_generator.create_form(title, description)
+            form = form_generator.create_form(title, description)
             log_capture.write("\n➕ Adding questions...\n")
             
             for i, question in enumerate(questions, 1):
@@ -594,6 +635,191 @@ def health_check():
         'status': 'ok',
         'ai_initialized': ai_creator is not None
     })
+
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    """Check if user is authenticated."""
+    user_creds = session.get('user_credentials')
+    return jsonify({
+        'authenticated': user_creds is not None,
+        'user_email': user_creds.get('user_email', None) if user_creds else None
+    })
+
+@app.route('/auth/login', methods=['GET'])
+def login():
+    """Initiate OAuth flow for user."""
+    try:
+        from google_auth_oauthlib.flow import Flow
+        from google_form_generator import GoogleFormGenerator
+        
+        # Find credentials file
+        credentials_file = os.getenv('CREDENTIALS_FILE_PATH')
+        if not credentials_file or not os.path.exists(credentials_file):
+            # Try to find it automatically
+            possible_locations = [
+                'credentials.json',
+                '/etc/secrets/credentials.json',
+                '/opt/render/project/src/credentials.json',
+            ]
+            for loc in possible_locations:
+                if os.path.exists(loc):
+                    credentials_file = loc
+                    break
+        
+        if not credentials_file or not os.path.exists(credentials_file):
+            return jsonify({
+                'success': False,
+                'error': 'Credentials file not found. Please configure OAuth credentials.'
+            }), 500
+        
+        # Get redirect URI - use _external=True to get full URL
+        # For production, ensure HTTPS is used
+        redirect_uri = url_for('callback', _external=True)
+        
+        # In production, force HTTPS
+        FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+        if FLASK_ENV == 'production':
+            redirect_uri = redirect_uri.replace('http://', 'https://')
+        
+        # Create OAuth flow
+        flow = Flow.from_client_secrets_file(
+            credentials_file,
+            scopes=GoogleFormGenerator.SCOPES,
+            redirect_uri=redirect_uri
+        )
+        
+        authorization_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent'  # Force consent to get refresh token
+        )
+        
+        session['oauth_state'] = state
+        session['oauth_flow_credentials_file'] = credentials_file
+        
+        return redirect(authorization_url)
+    except Exception as e:
+        print(f"Error initiating OAuth: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'Failed to initiate OAuth: {str(e)}'
+        }), 500
+
+@app.route('/auth/callback', methods=['GET'])
+def callback():
+    """Handle OAuth callback."""
+    try:
+        from google_auth_oauthlib.flow import Flow
+        from google_form_generator import GoogleFormGenerator
+        from google.oauth2.credentials import Credentials
+        
+        # Check state
+        state = session.get('oauth_state')
+        if not state or state != request.args.get('state'):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid OAuth state. Please try again.'
+            }), 400
+        
+        credentials_file = session.get('oauth_flow_credentials_file', 'credentials.json')
+        
+        # Get redirect URI - use _external=True to get full URL
+        # For production, ensure HTTPS is used
+        redirect_uri = url_for('callback', _external=True)
+        
+        # In production, force HTTPS
+        FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+        if FLASK_ENV == 'production':
+            redirect_uri = redirect_uri.replace('http://', 'https://')
+        
+        # Create flow and fetch token
+        flow = Flow.from_client_secrets_file(
+            credentials_file,
+            scopes=GoogleFormGenerator.SCOPES,
+            redirect_uri=redirect_uri
+        )
+        
+        flow.fetch_token(authorization_response=request.url)
+        credentials = flow.credentials
+        
+        # Get user info
+        try:
+            from googleapiclient.discovery import build
+            user_info_service = build('oauth2', 'v2', credentials=credentials)
+            user_info = user_info_service.userinfo().get().execute()
+            user_email = user_info.get('email', 'Unknown')
+        except:
+            user_email = 'Unknown'
+        
+        # Store in session
+        session['user_credentials'] = {
+            'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': list(credentials.scopes) if credentials.scopes else [],
+            'user_email': user_email
+        }
+        
+        # Clear OAuth state
+        session.pop('oauth_state', None)
+        session.pop('oauth_flow_credentials_file', None)
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        print(f"Error in OAuth callback: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'OAuth callback failed: {str(e)}'
+        }), 500
+
+@app.route('/auth/logout', methods=['POST', 'GET'])
+def logout():
+    """Logout user."""
+    session.pop('user_credentials', None)
+    session.pop('oauth_state', None)
+    session.pop('oauth_flow_credentials_file', None)
+    
+    if request.method == 'POST':
+        return jsonify({'success': True, 'message': 'Logged out successfully'})
+    return redirect(url_for('index'))
+
+def get_user_credentials():
+    """Get user credentials from session or return None."""
+    user_creds_data = session.get('user_credentials')
+    
+    if not user_creds_data:
+        return None
+    
+    try:
+        from google.oauth2.credentials import Credentials
+        
+        # Reconstruct credentials object
+        user_creds = Credentials(
+            token=user_creds_data['token'],
+            refresh_token=user_creds_data.get('refresh_token'),
+            token_uri=user_creds_data['token_uri'],
+            client_id=user_creds_data['client_id'],
+            client_secret=user_creds_data['client_secret'],
+            scopes=user_creds_data['scopes']
+        )
+        
+        # Refresh if expired
+        if user_creds.expired and user_creds.refresh_token:
+            try:
+                user_creds.refresh(Request())
+                # Update session with new token
+                session['user_credentials']['token'] = user_creds.token
+            except Exception as e:
+                print(f"Warning: Could not refresh token: {e}")
+        
+        return user_creds
+    except Exception as e:
+        print(f"Error reconstructing credentials: {e}")
+        return None
 
 @app.errorhandler(404)
 def not_found(error):

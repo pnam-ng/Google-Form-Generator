@@ -12,17 +12,29 @@ import google.generativeai as genai
 class GeminiFormGenerator:
     """Generate Google Form structure using Gemini AI."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str = None):
         """
         Initialize Gemini AI client.
         
         Args:
-            api_key: Google Gemini API key
+            api_key: Google Gemini API key (optional, will check environment variables if not provided)
         """
+        # Check for API key in multiple environment variables
+        if not api_key:
+            import os
+            api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+        
+        if not api_key:
+            raise ValueError(
+                "No API key found. Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable. "
+                "Get your key from: https://aistudio.google.com/app/apikey"
+            )
+        
         self.api_key = api_key
         genai.configure(api_key=api_key)
         # Try different model names - use the best available
         model_names = [
+            'gemini-2.5-flash',  # Preferred model
             'gemini-2.0-flash-exp',
             'gemini-1.5-flash',
             'gemini-1.5-pro',

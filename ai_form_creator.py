@@ -13,12 +13,12 @@ from gemini_form_generator import GeminiFormGenerator
 class AIFormCreator:
     """Main class for AI-powered form creation."""
     
-    def __init__(self, gemini_api_key: str):
+    def __init__(self, gemini_api_key: str = None):
         """
         Initialize AI Form Creator.
         
         Args:
-            gemini_api_key: Google Gemini API key
+            gemini_api_key: Google Gemini API key (optional, will check environment variables if not provided)
         """
         self.gemini = GeminiFormGenerator(gemini_api_key)
         self.form_generator = GoogleFormGenerator()

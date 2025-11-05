@@ -184,3 +184,4 @@ python test_gemini_key.py
 
 **Quick Answer:** Get a new API key from https://aistudio.google.com/app/apikey and update it in your environment variables!
 
+

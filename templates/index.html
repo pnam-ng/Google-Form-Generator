@@ -11,8 +11,22 @@
 <body>
     <div class="container">
         <header>
-            <h1>🤖 AI-Powered Google Form Creator</h1>
-            <p class="subtitle">Create professional Google Forms instantly from text or documents</p>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>🤖 AI-Powered Google Form Creator</h1>
+                    <p class="subtitle">Create professional Google Forms instantly from text or documents</p>
+                </div>
+                <div id="auth-section" class="auth-section">
+                    {% if user_logged_in %}
+                        <div class="auth-info">
+                            <span class="user-email">👤 {{ user_email }}</span>
+                            <button class="btn-logout" onclick="logout()">Logout</button>
+                        </div>
+                    {% else %}
+                        <a href="/auth/login" class="btn-login">🔐 Login with Google</a>
+                    {% endif %}
+                </div>
+            </div>
         </header>
 
         <main>

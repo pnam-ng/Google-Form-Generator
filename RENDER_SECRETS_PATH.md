@@ -52,3 +52,4 @@ Just make sure the file exists and is readable!
 
 **That's it!** Your credentials file at `/etc/secrets/credentials.json` will be automatically detected. 🎉
 
+

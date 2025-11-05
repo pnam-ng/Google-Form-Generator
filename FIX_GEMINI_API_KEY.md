@@ -167,3 +167,4 @@ python -c "import os; print('✅ Key set' if os.getenv('GEMINI_API_KEY') else '�
 
 **That's it!** Once the API key is set, restart your app and it should work. 🎉
 
+

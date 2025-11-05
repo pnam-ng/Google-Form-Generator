@@ -25,13 +25,14 @@ class GoogleFormGenerator:
         'https://www.googleapis.com/auth/documents.readonly'  # For reading Google Docs
     ]
     
-    def __init__(self, credentials_file: str = None, token_file: str = 'token.pickle'):
+    def __init__(self, credentials_file: str = None, token_file: str = 'token.pickle', user_credentials=None):
         """
         Initialize the Google Form Generator.
         
         Args:
             credentials_file: Path to OAuth 2.0 credentials JSON file (optional, will auto-detect)
-            token_file: Path to store authentication token
+            token_file: Path to store authentication token (optional, for backward compat)
+            user_credentials: User's OAuth credentials object (optional, for per-user authentication)
         """
         # Auto-detect credentials file location
         if credentials_file is None:
@@ -39,15 +40,22 @@ class GoogleFormGenerator:
         
         self.credentials_file = credentials_file
         self.token_file = token_file
+        self.user_credentials = user_credentials
         self.service = None
         self.drive_service = None
         self.docs_service = None
         
-        # Create credentials.json from environment variables if file doesn't exist
-        if not os.path.exists(self.credentials_file):
-            self._create_credentials_from_env()
-        
-        self._authenticate()
+        # If user credentials provided, use them directly (for per-user auth)
+        if user_credentials:
+            self.creds = user_credentials
+            self._build_services()
+        else:
+            # Fallback to file-based authentication (single account)
+            # Create credentials.json from environment variables if file doesn't exist
+            if not os.path.exists(self.credentials_file):
+                self._create_credentials_from_env()
+            
+            self._authenticate()
     
     def _find_credentials_file(self):
         """Find credentials file in common locations."""
@@ -142,7 +150,20 @@ class GoogleFormGenerator:
                     flow = InstalledAppFlow.from_client_secrets_file(
                         self.credentials_file, self.SCOPES
                     )
-                    creds = flow.run_local_server(port=0)
+                    # Try local server first (works for local development)
+                    # If that fails (e.g., on headless server), use console flow
+                    try:
+                        creds = flow.run_local_server(port=0)
+                    except Exception as browser_error:
+                        # If browser can't be opened (e.g., on Render), use console flow
+                        error_msg = str(browser_error).lower()
+                        if 'browser' in error_msg or 'runnable' in error_msg:
+                            print("\n⚠️  Browser-based authentication not available (headless server).")
+                            print("   Using console-based authentication...")
+                            print("   You'll need to manually authorize the application.\n")
+                            creds = flow.run_console()
+                        else:
+                            raise browser_error
                 except Exception as e:
                     error_msg = str(e).lower()
                     if 'access_denied' in error_msg or '403' in error_msg:
@@ -182,11 +203,36 @@ class GoogleFormGenerator:
                     else:
                         raise
             
-            # Save credentials for future use
-            with open(self.token_file, 'wb') as token:
-                pickle.dump(creds, token)
+            # Save credentials for future use (only if using file-based auth)
+            if self.token_file:
+                try:
+                    with open(self.token_file, 'wb') as token:
+                        pickle.dump(creds, token)
+                except Exception as e:
+                    print(f"⚠️  Warning: Could not save token to {self.token_file}: {e}")
+        
+        # Store credentials for later use
+        self.creds = creds
         
         # Build services
+        self._build_services()
+    
+    def _build_services(self):
+        """Build Google API service objects from credentials."""
+        # Get credentials from either user_credentials (per-user) or self.creds (file-based)
+        creds = getattr(self, 'creds', None) or self.user_credentials
+        
+        if not creds:
+            raise ValueError("No credentials available. Please authenticate first.")
+        
+        # Refresh token if expired
+        if creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"⚠️  Warning: Could not refresh token: {e}")
+        
+        # Build API services
         self.service = build('forms', 'v1', credentials=creds)
         self.drive_service = build('drive', 'v3', credentials=creds)
         self.docs_service = build('docs', 'v1', credentials=creds)

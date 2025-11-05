@@ -25,6 +25,7 @@ venv/
 ENV/
 env/
 .venv
+# Note: env.example SHOULD be committed (it's a template)
 
 # IDE
 .vscode/
@@ -33,16 +34,21 @@ env/
 *.swo
 *~
 
-# Environment variables
+# Environment variables (sensitive - contains API keys)
 .env
 .env.local
 .env.production
+.env.*
+!.env.example
 
-# Credentials and tokens
+# Credentials and tokens (sensitive - contains OAuth secrets)
 credentials.json
+newcredentials.json
 token.pickle
 *.pem
 *.key
+**/credentials.json
+**/token.pickle
 
 # Uploads
 uploads/*

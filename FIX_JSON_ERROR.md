@@ -71,3 +71,4 @@ If you still see the error:
 4. Verify server is running on correct port
 5. Check if `credentials.json` exists and is valid
 
+
