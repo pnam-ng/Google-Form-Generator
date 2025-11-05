@@ -55,19 +55,11 @@ class GoogleFormGenerator:
             if not os.path.exists(self.credentials_file):
                 self._create_credentials_from_env()
             
-            try:
-                self._authenticate()
-            except Exception as auth_error:
-                # Re-raise with more context for better error messages
-                error_msg = str(auth_error).lower()
-                if 'browser' in error_msg or 'runnable' in error_msg:
-                    # This will be caught by app.py's error handler
-                    raise RuntimeError(
-                        f"OAuth authentication failed: {auth_error}. "
-                        "This is normal on headless servers like Render. "
-                        "Check logs for authorization URL and visit it in your browser."
-                    ) from auth_error
-                raise
+            # Lazy authentication: only authenticate when services are actually needed
+            # This allows the app to start even if authentication fails initially
+            # Authentication will be attempted when create_form() is called
+            self.creds = None
+            self._authenticate_lazy()
     
     def _find_credentials_file(self):
         """Find credentials file in common locations."""
@@ -261,13 +253,61 @@ class GoogleFormGenerator:
         # Build services
         self._build_services()
     
+    def _authenticate_lazy(self):
+        """Attempt to load existing token without forcing authentication."""
+        # Try to load existing token if available
+        if os.path.exists(self.token_file):
+            try:
+                with open(self.token_file, 'rb') as token:
+                    self.creds = pickle.load(token)
+                
+                # Check if token is valid
+                if self.creds and self.creds.valid:
+                    # Build services with existing token
+                    self._build_services()
+                    print("✅ Using existing authentication token")
+                    return
+                elif self.creds and self.creds.expired and self.creds.refresh_token:
+                    # Try to refresh
+                    try:
+                        self.creds.refresh(Request())
+                        self._build_services()
+                        print("✅ Refreshed authentication token")
+                        return
+                    except:
+                        pass
+            except Exception as e:
+                print(f"⚠️  Could not load existing token: {e}")
+        
+        # No valid token - will need to authenticate when needed
+        print("⚠️  No valid authentication token found. Authentication will be required on first form creation.")
+        self.creds = None
+    
     def _build_services(self):
         """Build Google API service objects from credentials."""
         # Get credentials from either user_credentials (per-user) or self.creds (file-based)
         creds = getattr(self, 'creds', None) or self.user_credentials
         
         if not creds:
-            raise ValueError("No credentials available. Please authenticate first.")
+            # Try to authenticate now if not already authenticated
+            if not self.user_credentials:
+                try:
+                    self._authenticate()
+                    creds = self.creds
+                except Exception as auth_error:
+                    error_msg = str(auth_error).lower()
+                    if 'browser' in error_msg or 'runnable' in error_msg:
+                        # On headless servers, this is expected - authentication will be handled when needed
+                        raise RuntimeError(
+                            f"OAuth authentication failed: {auth_error}. "
+                            "This is normal on headless servers like Render. "
+                            "Please use the 'Login with Google' button in the web UI to authenticate, "
+                            "or upload a token.pickle file to Render. "
+                            "See FIX_HEADLESS_AUTH.md for instructions."
+                        ) from auth_error
+                    raise
+            else:
+                raise ValueError("No credentials available. Please authenticate first.")
         
         # Refresh token if expired
         if creds.expired and creds.refresh_token:
