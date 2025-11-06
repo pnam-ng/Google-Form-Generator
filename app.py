@@ -12,6 +12,7 @@ import io
 from contextlib import redirect_stdout
 from datetime import datetime
 from ai_form_creator import AIFormCreator
+from google_form_generator import GoogleFormGenerator
 
 # Load environment variables from .env file if it exists
 try:
@@ -193,45 +194,7 @@ def index():
     # Check if user is authenticated
     user_creds = session.get('user_credentials')
     user_email = user_creds.get('user_email', None) if user_creds else None
-    
-    # If user_email is None or 'Unknown', try to refresh it
-    if user_creds and (not user_email or user_email == 'Unknown'):
-        try:
-            from google.oauth2.credentials import Credentials
-            from googleapiclient.discovery import build
-            
-            # Recreate credentials from session
-            creds = Credentials(
-                token=user_creds.get('token'),
-                refresh_token=user_creds.get('refresh_token'),
-                token_uri=user_creds.get('token_uri'),
-                client_id=user_creds.get('client_id'),
-                client_secret=user_creds.get('client_secret'),
-                scopes=user_creds.get('scopes', [])
-            )
-            
-            # Get user info
-            user_info_service = build('oauth2', 'v2', credentials=creds)
-            user_info = user_info_service.userinfo().get().execute()
-            user_email = user_info.get('email', None)
-            
-            # Update session with email
-            if user_email:
-                user_creds['user_email'] = user_email
-                session['user_credentials'] = user_creds
-                print(f"✅ Refreshed user email: {user_email}")
-        except Exception as e:
-            print(f"⚠️  Could not refresh user email: {e}")
-    
-    return render_template('index.html', user_logged_in=user_creds is not None, user_email=user_email or 'Unknown')
-
-@app.route('/help')
-def help_page():
-    """Help and guide page."""
-    # Check if user is authenticated
-    user_creds = session.get('user_credentials')
-    user_email = user_creds.get('user_email', None) if user_creds else None
-    return render_template('help.html', user_logged_in=user_creds is not None, user_email=user_email or 'Unknown')
+    return render_template('index.html', user_logged_in=user_creds is not None, user_email=user_email)
 
 @app.route('/api/create-from-text', methods=['POST'])
 def create_from_text():
@@ -1152,8 +1115,52 @@ def callback():
             )
             
             print(f"✅ OAuth flow created for callback")
-            flow.fetch_token(authorization_response=request.url)
-            print(f"✅ Token fetched successfully")
+            
+            # Fetch token - handle scope changes gracefully
+            try:
+                flow.fetch_token(authorization_response=request.url)
+                print(f"✅ Token fetched successfully")
+            except ValueError as scope_error:
+                # Check if it's a scope change error (Google adds scopes automatically)
+                error_str = str(scope_error)
+                if 'Scope has changed' in error_str:
+                    print(f"⚠️  Scope change detected (this is normal - Google adds userinfo scopes automatically)")
+                    print(f"   Attempting to handle gracefully...")
+                    
+                    # Try to extract the actual scopes from the error or authorization response
+                    # Recreate flow with the actual scopes that were granted
+                    from urllib.parse import urlparse, parse_qs
+                    parsed_url = urlparse(request.url)
+                    query_params = parse_qs(parsed_url.query)
+                    
+                    # The actual scopes might be in the state or we need to accept the new scopes
+                    # For now, let's try to fetch token without strict scope checking
+                    # by recreating the flow with the expanded scopes
+                    try:
+                        # Get the actual granted scopes from the authorization response
+                        # Google includes them in the callback
+                        flow.fetch_token(authorization_response=request.url, allow_scope_change=True)
+                        print(f"✅ Token fetched successfully (with scope change)")
+                    except AttributeError:
+                        # If allow_scope_change doesn't exist, we need to handle it differently
+                        # Parse the error to get the new scopes and recreate flow
+                        import re
+                        scope_match = re.search(r'to "([^"]+)"', error_str)
+                        if scope_match:
+                            new_scopes = scope_match.group(1).split()
+                            print(f"   Detected new scopes: {new_scopes}")
+                            # Recreate flow with new scopes
+                            flow = Flow.from_client_secrets_file(
+                                credentials_file,
+                                scopes=new_scopes,
+                                redirect_uri=redirect_uri
+                            )
+                            flow.fetch_token(authorization_response=request.url)
+                            print(f"✅ Token fetched successfully (with updated scopes)")
+                        else:
+                            raise
+                else:
+                    raise
         except Exception as token_error:
             print(f"❌ Error fetching token: {token_error}")
             print(f"   Redirect URI used: {redirect_uri}")
@@ -1166,59 +1173,13 @@ def callback():
         credentials = flow.credentials
         
         # Get user info
-        user_email = None
         try:
             from googleapiclient.discovery import build
             user_info_service = build('oauth2', 'v2', credentials=credentials)
             user_info = user_info_service.userinfo().get().execute()
-            user_email = user_info.get('email', None)
-            
-            # Try alternative methods to get email
-            if not user_email:
-                user_email = user_info.get('emailAddress', None)
-            
-            # Log user info for debugging
-            print(f"📧 User info retrieved: {user_info}")
-            print(f"📧 User email: {user_email}")
-            
-            # Fallback if still no email
-            if not user_email:
-                print(f"⚠️  Could not retrieve user email from user_info")
-                user_email = None
-            else:
-                print(f"✅ Retrieved user email: {user_email}")
-        except Exception as e:
-            print(f"⚠️  Error getting user info: {e}")
-            import traceback
-            traceback.print_exc()
-            user_email = None
-        
-        # If we still don't have email, try to get from token
-        if not user_email:
-            try:
-                # Try to extract from ID token if available
-                if hasattr(credentials, 'id_token') and credentials.id_token:
-                    import base64
-                    import json
-                    # ID token is a JWT, decode it (without verification for now)
-                    parts = credentials.id_token.split('.')
-                    if len(parts) >= 2:
-                        # Decode the payload (second part)
-                        payload = parts[1]
-                        # Add padding if needed
-                        payload += '=' * (4 - len(payload) % 4)
-                        decoded = base64.urlsafe_b64decode(payload)
-                        token_data = json.loads(decoded)
-                        user_email = token_data.get('email', None)
-                        if user_email:
-                            print(f"✅ Retrieved user email from ID token: {user_email}")
-            except Exception as token_error:
-                print(f"⚠️  Could not get email from ID token: {token_error}")
-        
-        # Final fallback
-        if not user_email:
+            user_email = user_info.get('email', 'Unknown')
+        except:
             user_email = 'Unknown'
-            print(f"⚠️  Using fallback email: Unknown")
         
         # Store in session
         session['user_credentials'] = {

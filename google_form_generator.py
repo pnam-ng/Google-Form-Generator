@@ -22,7 +22,10 @@ class GoogleFormGenerator:
         'https://www.googleapis.com/auth/forms.body',
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive',  # Needed to set permissions
-        'https://www.googleapis.com/auth/documents.readonly'  # For reading Google Docs
+        'https://www.googleapis.com/auth/documents.readonly',  # For reading Google Docs
+        'https://www.googleapis.com/auth/userinfo.email',  # For getting user email
+        'https://www.googleapis.com/auth/userinfo.profile',  # For getting user profile
+        'openid'  # Required for userinfo scopes
     ]
     
     def __init__(self, credentials_file: str = None, token_file: str = 'token.pickle', user_credentials=None):
@@ -92,17 +95,34 @@ class GoogleFormGenerator:
             print(f"✅ Found credentials at: {primary_location}")
             return primary_location
         
-        # Fallback locations (if primary doesn't exist)
-        fallback_locations = [
-            'credentials.json',  # Default location (project root)
+        # Get absolute path for project root (same logic as app.py)
+        try:
+            # Try to get the project root from the current file location
+            current_file = os.path.abspath(__file__)
+            project_root = os.path.dirname(current_file)
+            project_root_creds = os.path.join(project_root, 'credentials.json')
+        except:
+            project_root_creds = None
+        
+        # Fallback locations (check absolute paths first, like app.py)
+        fallback_locations = []
+        
+        # Add project root with absolute path first (most likely location for local dev)
+        if project_root_creds:
+            fallback_locations.append(project_root_creds)
+        
+        # Then add relative and other locations
+        fallback_locations.extend([
+            'credentials.json',  # Relative path (current working directory)
             '/opt/render/project/src/credentials.json',  # Render project path
             os.path.expanduser('~/credentials.json'),  # Home directory
-        ]
+        ])
         
         for location in fallback_locations:
-            if os.path.exists(location):
-                print(f"✅ Found credentials at: {location}")
-                return location
+            if location and os.path.exists(location):
+                abs_location = os.path.abspath(location) if not os.path.isabs(location) else location
+                print(f"✅ Found credentials at: {abs_location}")
+                return abs_location
         
         # If not found, return primary location (will try to create from env vars)
         print(f"⚠️  Credentials file not found, will use: {primary_location}")
