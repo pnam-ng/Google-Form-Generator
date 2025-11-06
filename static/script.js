@@ -90,35 +90,40 @@ function setupDefaultSettingButtons() {
 function updateDefaultButtonStates() {
     const isRequired = window.defaultRequiredSetting;
     
-    // Update all buttons
+    // Update all required buttons
     document.querySelectorAll('#set-default-required-btn, #set-default-required-btn-file, #set-default-required-btn-docs, #set-default-required-btn-script').forEach(btn => {
         if (btn) {
-            btn.style.background = isRequired ? 'linear-gradient(135deg, var(--success-color) 0%, #059669 100%)' : '';
-            btn.style.color = isRequired ? 'white' : '';
-            btn.style.border = isRequired ? '2px solid var(--success-color)' : '';
+            if (isRequired) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
         }
     });
     
+    // Update all optional buttons
     document.querySelectorAll('#set-default-optional-btn, #set-default-optional-btn-file, #set-default-optional-btn-docs, #set-default-optional-btn-script').forEach(btn => {
         if (btn) {
-            btn.style.background = !isRequired ? 'linear-gradient(135deg, #64748b 0%, #475569 100%)' : '';
-            btn.style.color = !isRequired ? 'white' : '';
-            btn.style.border = !isRequired ? '2px solid #64748b' : '';
+            if (!isRequired) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
         }
     });
 }
 
 // Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
         const tabName = btn.dataset.tab;
         
         // Update active tab button
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         
         // Update active tab content
-        document.querySelectorAll('.tab-content').forEach(content => {
+        document.querySelectorAll('.tab-panel').forEach(content => {
             content.classList.remove('active');
         });
         document.getElementById(`${tabName}-tab`).classList.add('active');
@@ -326,7 +331,7 @@ async function createForm(method, data = null, file = null) {
         ? document.getElementById('create-from-docs-btn')
         : document.getElementById('create-from-script-btn');
     
-    const btnText = btn.querySelector('.btn-text');
+    const btnText = btn.querySelector('.btn-label');
     const btnLoader = btn.querySelector('.btn-loader');
     
     // Show log console
@@ -871,7 +876,7 @@ function setupCreateFormButton() {
             }
             
             const btn = document.getElementById('create-form-btn');
-            const btnText = btn.querySelector('.btn-text');
+            const btnText = btn.querySelector('.btn-label');
             const btnLoader = btn.querySelector('.btn-loader');
             const logConsole = document.getElementById('log-console-text');
             const logContent = document.getElementById('log-content-text');
@@ -1044,8 +1049,8 @@ document.getElementById('create-another-btn').addEventListener('click', () => {
     
     document.getElementById('text-tab').classList.add('active');
     document.getElementById('file-tab').classList.remove('active');
-    document.querySelectorAll('.tab-btn')[0].classList.add('active');
-    document.querySelectorAll('.tab-btn')[1].classList.remove('active');
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    document.querySelectorAll('.tab')[1].classList.remove('active');
 });
 
 // Try again button
@@ -1099,6 +1104,29 @@ async function logout() {
     }
 }
 
-// Check auth status on page load
-document.addEventListener('DOMContentLoaded', checkAuthStatus);
+// Check auth status and credentials on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    checkAuthStatus();
+    
+    // Also check credentials configuration
+    try {
+        const response = await fetch('/api/check-credentials');
+        const data = await response.json();
+        
+        if (data.status === 'missing') {
+            console.warn('⚠️ Credentials not configured:', data.message);
+            // Optionally show a notification to the user
+            const authSection = document.getElementById('auth-section');
+            if (authSection && !authSection.querySelector('.credentials-warning')) {
+                const warning = document.createElement('div');
+                warning.className = 'credentials-warning';
+                warning.style.cssText = 'padding: 0.75rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; margin-top: 0.5rem; font-size: 0.875rem; color: #92400e;';
+                warning.innerHTML = '⚠️ OAuth credentials not configured. Please set environment variables in Render Dashboard.';
+                authSection.appendChild(warning);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking credentials:', error);
+    }
+});
 

@@ -1,171 +1,100 @@
-/* Form Components */
-.form-group {
-    margin-bottom: 24px;
+/* Additional component styles for the modern UI */
+
+/* Card styles (if needed for legacy compatibility) */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
 }
 
-.form-group:last-child {
-    margin-bottom: 0;
+.card-header {
+    margin-bottom: 1.5rem;
 }
 
-.form-label {
-    display: block;
-    font-size: 0.95rem;
+.card-header h2 {
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
 }
 
-.form-input,
-.form-textarea {
-    width: 100%;
-    padding: 14px 16px;
-    border: 2px solid var(--border-color);
-    border-radius: 12px;
-    font-size: 1rem;
-    font-family: inherit;
-    background: var(--card-bg);
-    color: var(--text-primary);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.form-input:focus,
-.form-textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.form-textarea {
-    resize: vertical;
-    min-height: 120px;
-    line-height: 1.6;
-}
-
-.code-textarea {
-    font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
-    font-size: 0.9rem;
-    line-height: 1.5;
-}
-
-.form-hint {
-    margin-top: 8px;
-    padding: 12px;
-    background: var(--bg-color);
-    border-radius: 8px;
-    font-size: 0.85rem;
+.help-text {
+    font-size: 0.9375rem;
     color: var(--text-secondary);
 }
 
-.form-hint ul {
-    margin: 8px 0 0 20px;
-    padding: 0;
+/* Badge styles */
+.required-badge {
+    background: var(--success);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.form-hint li {
-    margin: 4px 0;
+.optional-badge {
+    background: var(--bg);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--border);
 }
 
-.form-divider {
-    text-align: center;
-    margin: 24px 32px;
-    position: relative;
+/* Loading states */
+.btn-loader {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.form-divider::before {
+.btn-loader::after {
     content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--border-color);
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
 }
 
-.form-divider span {
-    position: relative;
-    background: var(--card-bg);
-    padding: 0 16px;
-    color: var(--text-secondary);
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-/* Setting Group */
-.setting-group {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    background: var(--bg-color);
-    border-radius: 12px;
-    margin-bottom: 24px;
-}
-
-.setting-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
-.setting-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.btn-setting {
-    padding: 8px 16px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    border: 2px solid var(--border-color);
-    background: var(--card-bg);
-    color: var(--text-secondary);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-family: inherit;
-}
-
-.btn-setting:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-    transform: translateY(-1px);
-}
-
-.setting-hint {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-style: italic;
-}
-
-@media (max-width: 768px) {
-    .setting-group {
-        padding: 12px;
-    }
-    
-    .setting-buttons {
-        width: 100%;
-    }
-    
-    .btn-setting {
-        flex: 1;
-        min-width: 120px;
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 
-/* Button Improvements */
-.btn-large {
-    padding: 16px 32px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    width: 100%;
-    margin-top: 8px;
+/* Smooth transitions */
+* {
+    transition-property: color, background-color, border-color, transform, opacity;
+    transition-duration: 0.2s;
+    transition-timing-function: ease;
 }
 
-@media (max-width: 768px) {
-    .btn-large {
-        padding: 14px 24px;
-        font-size: 1rem;
+/* Focus visible for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .app-header,
+    .tabs-container,
+    .btn-primary,
+    .btn-secondary,
+    .app-footer {
+        display: none;
     }
 }
-

@@ -697,6 +697,66 @@ def health_check():
         'ai_initialized': ai_creator is not None
     })
 
+@app.route('/api/check-credentials', methods=['GET'])
+def check_credentials():
+    """Check credentials configuration status."""
+    try:
+        # Check for credentials file
+        credentials_file = os.getenv('CREDENTIALS_FILE_PATH')
+        found_file = False
+        file_path = None
+        
+        # Primary location: /etc/secrets/credentials.json
+        primary_location = '/etc/secrets/credentials.json'
+        
+        if credentials_file and os.path.exists(credentials_file):
+            found_file = True
+            file_path = credentials_file
+        else:
+            # Check primary location first
+            if os.path.exists(primary_location):
+                found_file = True
+                file_path = primary_location
+            else:
+                # Check fallback locations
+                fallback_locations = [
+                    'credentials.json',
+                    '/opt/render/project/src/credentials.json',
+                    os.path.expanduser('~/credentials.json'),
+                ]
+                for location in fallback_locations:
+                    if os.path.exists(location):
+                        found_file = True
+                        file_path = location
+                        break
+        
+        # Check environment variables
+        client_id = os.getenv('GOOGLE_CLIENT_ID')
+        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+        project_id = os.getenv('GOOGLE_PROJECT_ID')
+        
+        env_vars_set = bool(client_id and client_secret and project_id)
+        
+        return jsonify({
+            'credentials_file_found': found_file,
+            'credentials_file_path': file_path,
+            'environment_variables_set': env_vars_set,
+            'client_id_set': bool(client_id),
+            'client_secret_set': bool(client_secret),
+            'project_id_set': bool(project_id),
+            'can_create_credentials': env_vars_set and not found_file,
+            'status': 'ok' if (found_file or env_vars_set) else 'missing',
+            'message': (
+                'Credentials configured' if (found_file or env_vars_set) else
+                'No credentials found. Please set environment variables or upload credentials.json'
+            )
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
 @app.route('/api/auth/status', methods=['GET'])
 def auth_status():
     """Check if user is authenticated."""
@@ -713,24 +773,158 @@ def login():
         from google_auth_oauthlib.flow import Flow
         from google_form_generator import GoogleFormGenerator
         
-        # Find credentials file
+        # First, try to find or create credentials file
+        # Check environment variable first
         credentials_file = os.getenv('CREDENTIALS_FILE_PATH')
-        if not credentials_file or not os.path.exists(credentials_file):
-            # Try to find it automatically
-            possible_locations = [
-                'credentials.json',
-                '/etc/secrets/credentials.json',
-                '/opt/render/project/src/credentials.json',
-            ]
-            for loc in possible_locations:
-                if os.path.exists(loc):
-                    credentials_file = loc
-                    break
         
+        # Primary location: /etc/secrets/credentials.json (works on both local and Render)
+        primary_location = '/etc/secrets/credentials.json'
+        
+        # Ensure /etc/secrets/ directory exists (create if needed)
+        secrets_dir = '/etc/secrets'
+        if not os.path.exists(secrets_dir):
+            try:
+                os.makedirs(secrets_dir, mode=0o755, exist_ok=True)
+                print(f"✅ Created directory: {secrets_dir}")
+            except (OSError, PermissionError) as e:
+                # If we can't create /etc/secrets (e.g., no admin on Windows), fall back
+                print(f"⚠️  Could not create {secrets_dir}: {e}")
+                print(f"   Will use alternative location")
+        
+        # If not set via env var, check primary location first
         if not credentials_file or not os.path.exists(credentials_file):
+            if os.path.exists(primary_location):
+                credentials_file = primary_location
+            else:
+                # Fallback locations
+                fallback_locations = [
+                    'credentials.json',  # Default location (project root)
+                    '/opt/render/project/src/credentials.json',  # Render project path
+                    os.path.expanduser('~/credentials.json'),  # Home directory
+                ]
+                for location in fallback_locations:
+                    if os.path.exists(location):
+                        credentials_file = location
+                        break
+                
+                # If still not found, use primary location (will create from env vars)
+                if not credentials_file or not os.path.exists(credentials_file):
+                    credentials_file = primary_location
+        
+        # If still not found, try to create from environment variables
+        if not credentials_file or not os.path.exists(credentials_file):
+            client_id = os.getenv('GOOGLE_CLIENT_ID')
+            client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+            project_id = os.getenv('GOOGLE_PROJECT_ID')
+            
+            # Debug logging
+            print(f"🔍 Checking environment variables for OAuth credentials...")
+            print(f"   GOOGLE_CLIENT_ID: {'Set' if client_id else 'Not set'}")
+            print(f"   GOOGLE_CLIENT_SECRET: {'Set' if client_secret else 'Not set'}")
+            print(f"   GOOGLE_PROJECT_ID: {'Set' if project_id else 'Not set'}")
+            
+            if client_id and client_secret and project_id:
+                try:
+                    # Use primary location: /etc/secrets/credentials.json
+                    if not credentials_file:
+                        credentials_file = primary_location
+                    
+                    # Ensure /etc/secrets/ directory exists
+                    creds_dir = os.path.dirname(credentials_file)
+                    if not os.path.exists(creds_dir):
+                        try:
+                            os.makedirs(creds_dir, mode=0o755, exist_ok=True)
+                            print(f"✅ Created directory: {creds_dir}")
+                        except (OSError, PermissionError) as e:
+                            print(f"⚠️  Could not create {creds_dir}: {e}")
+                            # Fallback to project root if /etc/secrets can't be created
+                            credentials_file = 'credentials.json'
+                            creds_dir = '.'
+                    
+                    # Create credentials.json from environment variables
+                    import json
+                    credentials_data = {
+                        "installed": {
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                            "redirect_uris": ["http://localhost"]
+                        },
+                        "project_id": project_id
+                    }
+                    
+                    # Ensure directory exists (double check)
+                    os.makedirs(creds_dir, mode=0o755, exist_ok=True)
+                    
+                    with open(credentials_file, 'w') as f:
+                        json.dump(credentials_data, f, indent=2)
+                    
+                    # Verify file was created
+                    if os.path.exists(credentials_file):
+                        print(f"✅ Created credentials.json from environment variables at: {credentials_file}")
+                    else:
+                        raise Exception(f"File was written but not found at: {credentials_file}")
+                except Exception as e:
+                    print(f"⚠️  Could not create credentials.json from environment: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({
+                        'success': False,
+                        'error': f'Could not create credentials file: {str(e)}. Please ensure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_PROJECT_ID are set correctly. Error details: {str(e)}'
+                    }), 500
+            else:
+                missing_vars = []
+                if not client_id:
+                    missing_vars.append('GOOGLE_CLIENT_ID')
+                if not client_secret:
+                    missing_vars.append('GOOGLE_CLIENT_SECRET')
+                if not project_id:
+                    missing_vars.append('GOOGLE_PROJECT_ID')
+                
+                error_msg = (
+                    'Credentials file not found. Please configure OAuth credentials.\n\n'
+                    'Option 1: Upload credentials.json file to your server\n'
+                    'Option 2: Set the following environment variables in Render Dashboard:\n'
+                    f'  - {", ".join(missing_vars)}\n\n'
+                    'To get these values:\n'
+                    '1. Go to Google Cloud Console → APIs & Services → Credentials\n'
+                    '2. Click on your OAuth 2.0 Client ID\n'
+                    '3. Copy the Client ID → Set as GOOGLE_CLIENT_ID\n'
+                    '4. Copy the Client Secret → Set as GOOGLE_CLIENT_SECRET\n'
+                    '5. Copy the Project ID → Set as GOOGLE_PROJECT_ID'
+                )
+                return jsonify({
+                    'success': False,
+                    'error': error_msg
+                }), 500
+        
+        # Final verification
+        if not credentials_file or not os.path.exists(credentials_file):
+            # Additional debug info
+            print(f"❌ Credentials file not found at: {credentials_file}")
+            print(f"   Current working directory: {os.getcwd()}")
+            print(f"   Files in current directory: {os.listdir('.') if os.path.exists('.') else 'N/A'}")
+            
             return jsonify({
                 'success': False,
-                'error': 'Credentials file not found. Please configure OAuth credentials.'
+                'error': f'Credentials file not found at: {credentials_file}. Please configure OAuth credentials.'
+            }), 500
+        
+        # Verify file is readable and valid JSON
+        try:
+            with open(credentials_file, 'r') as f:
+                import json
+                creds_data = json.load(f)
+                if 'installed' not in creds_data and 'web' not in creds_data:
+                    raise ValueError("Invalid credentials file format")
+            print(f"✅ Verified credentials file is valid at: {credentials_file}")
+        except Exception as e:
+            print(f"⚠️  Credentials file exists but is invalid: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Credentials file is invalid: {str(e)}. Please check the file format.'
             }), 500
         
         # Get redirect URI - use _external=True to get full URL

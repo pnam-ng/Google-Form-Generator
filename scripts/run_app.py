@@ -43,6 +43,13 @@ def main():
     if not check_dependencies():
         sys.exit(1)
     
+    # Add parent directory to path to import app
+    import sys
+    import os
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    
     # Import app after checking dependencies
     from app import app
     

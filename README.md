@@ -97,7 +97,7 @@ print(f"Form created: {form_url}")
 
 ### Advanced Example
 
-See `example.py` for more detailed examples.
+See `scripts/example.py` for more detailed examples.
 
 ## API Reference
 
@@ -131,7 +131,7 @@ Main class for creating and managing Google Forms.
 Run the diagnostic script to check your setup:
 
 ```bash
-python diagnose_setup.py
+python scripts/diagnose_setup.py
 ```
 
 ### Common Issues
@@ -146,7 +146,7 @@ Lỗi 403: access_denied
 
 **Solution:** You need to add your email to the Test users list in Google Cloud Console.
 
-📖 **See detailed fix guide:** `FIX_403_ERROR.md`
+📖 **See detailed fix guide:** `docs/FIX_403_ERROR.md`
 
 Quick fix:
 1. Go to Google Cloud Console > APIs & Services > OAuth consent screen
@@ -193,13 +193,13 @@ Quick fix:
 **Quick Start:**
 ```bash
 # Windows
-start_web_app.bat
+scripts\start_web_app.bat
 
 # macOS/Linux
-./start_web_app.sh
+./scripts/start_web_app.sh
 
 # Or directly
-python run_app.py
+python scripts/run_app.py
 ```
 
 Then open your browser at `http://127.0.0.1:5000`
@@ -212,7 +212,7 @@ Then open your browser at `http://127.0.0.1:5000`
 - 🔗 Direct links to created forms
 - 📱 Responsive design (works on mobile)
 
-📖 **See detailed guide:** `README_WEB_UI.md`
+📖 **See detailed guide:** `docs/README_WEB_UI.md`
 
 ## AI-Powered Form Creation 🤖
 
@@ -232,7 +232,7 @@ python ai_form_creator.py
 - ✨ Automatic question type detection
 - 🔗 Direct Google Form creation
 
-**See detailed guide:** `README_AI.md`
+**See detailed guide:** `docs/README_AI.md`
 
 **Example:**
 ```python
@@ -247,6 +247,65 @@ Create a customer feedback form with:
 - Comments
 """)
 ```
+
+## Project Structure
+
+```
+GoogleFormGenerate/
+├── app.py                      # Main Flask web application
+├── ai_form_creator.py          # AI-powered form creator
+├── gemini_form_generator.py    # Gemini AI integration
+├── google_form_generator.py    # Google Forms API wrapper
+├── script_parser.py            # Script parser for form creation
+├── config_helper.py            # Configuration helper
+├── gunicorn_config.py          # Gunicorn server configuration
+├── requirements.txt            # Python dependencies
+├── env.example                 # Environment variables template
+├── README.md                   # This file
+│
+├── deployment/                 # Deployment configurations
+│   ├── Dockerfile              # Docker configuration
+│   ├── docker-compose.yml      # Docker Compose config
+│   ├── Procfile                # Heroku/Render Procfile
+│   ├── render.yaml             # Render.com configuration
+│   ├── railway.toml            # Railway.app configuration
+│   ├── fly.toml                # Fly.io configuration
+│   └── railway.json            # Railway.json config
+│
+├── docs/                       # Documentation
+│   ├── README_DOCS.md          # Documentation index
+│   ├── setup_guide.md          # Detailed setup guide
+│   ├── deployment_guide.md     # Deployment instructions
+│   ├── DEPLOY_RENDER.md        # Render.com deployment
+│   └── ...                     # Other documentation files
+│
+├── scripts/                    # Utility scripts
+│   ├── run_app.py              # Web app launcher
+│   ├── start_web_app.bat       # Windows launcher
+│   ├── start_web_app.sh        # macOS/Linux launcher
+│   ├── quick_start.py          # Quick start example
+│   ├── example.py              # Advanced examples
+│   ├── test_ai_form.py         # AI form testing
+│   ├── diagnose_setup.py       # Setup diagnostic
+│   └── install_dependencies.py # Dependency installer
+│
+├── examples/                   # Example files
+│   └── example_input.txt       # Example input file
+│
+├── static/                     # Web UI static files
+│   ├── style.css               # Main stylesheet
+│   ├── style_components.css    # Component styles
+│   └── script.js               # Frontend JavaScript
+│
+├── templates/                  # Web UI templates
+│   └── index.html              # Main HTML template
+│
+└── uploads/                    # User uploads directory
+```
+
+## Documentation
+
+All documentation files are located in the `docs/` directory. See `docs/README_DOCS.md` for a complete index.
 
 ## License
 

@@ -71,22 +71,43 @@ class GoogleFormGenerator:
             print(f"✅ Found credentials at: {env_path} (from CREDENTIALS_FILE_PATH)")
             return env_path
         
-        # Check common locations in order
-        possible_locations = [
+        # Primary location: /etc/secrets/credentials.json (works on both local and Render)
+        primary_location = '/etc/secrets/credentials.json'
+        
+        # Ensure /etc/secrets/ directory exists (create if needed)
+        secrets_dir = '/etc/secrets'
+        if not os.path.exists(secrets_dir):
+            try:
+                os.makedirs(secrets_dir, mode=0o755, exist_ok=True)
+                print(f"✅ Created directory: {secrets_dir}")
+            except (OSError, PermissionError) as e:
+                # If we can't create /etc/secrets (e.g., no admin on Windows), fall back
+                print(f"⚠️  Could not create {secrets_dir}: {e}")
+                print(f"   Will use alternative location")
+        else:
+            print(f"✅ Directory exists: {secrets_dir}")
+        
+        # Check primary location first
+        if os.path.exists(primary_location):
+            print(f"✅ Found credentials at: {primary_location}")
+            return primary_location
+        
+        # Fallback locations (if primary doesn't exist)
+        fallback_locations = [
             'credentials.json',  # Default location (project root)
-            '/etc/secrets/credentials.json',  # Render secrets path
             '/opt/render/project/src/credentials.json',  # Render project path
             os.path.expanduser('~/credentials.json'),  # Home directory
         ]
         
-        for location in possible_locations:
+        for location in fallback_locations:
             if os.path.exists(location):
                 print(f"✅ Found credentials at: {location}")
                 return location
         
-        # If not found, return default (will try to create from env vars)
-        print("⚠️  Credentials file not found, will try to create from environment variables")
-        return 'credentials.json'
+        # If not found, return primary location (will try to create from env vars)
+        print(f"⚠️  Credentials file not found, will use: {primary_location}")
+        print("   Will try to create from environment variables if available")
+        return primary_location
     
     def _create_credentials_from_env(self):
         """Create credentials.json from environment variables if available."""
@@ -109,9 +130,18 @@ class GoogleFormGenerator:
             }
             
             try:
+                # Ensure directory exists before writing
+                creds_dir = os.path.dirname(self.credentials_file) if os.path.dirname(self.credentials_file) else '.'
+                if creds_dir != '.':
+                    os.makedirs(creds_dir, mode=0o755, exist_ok=True)
+                
                 with open(self.credentials_file, 'w') as f:
                     json.dump(credentials_data, f, indent=2)
                 print(f"✅ Created {self.credentials_file} from environment variables")
+            except (OSError, PermissionError) as e:
+                print(f"⚠️  Warning: Could not create credentials.json from environment: {e}")
+                print(f"   Tried to create at: {self.credentials_file}")
+                print(f"   You may need admin/root permissions to create /etc/secrets/ directory")
             except Exception as e:
                 print(f"⚠️  Warning: Could not create credentials.json from environment: {e}")
     
@@ -589,6 +619,21 @@ class GoogleFormGenerator:
             Document content as plain text
         """
         try:
+            # Ensure services are built before using them (same pattern as create_form)
+            if not self.docs_service:
+                try:
+                    self._build_services()
+                except RuntimeError as e:
+                    error_msg = str(e)
+                    if 'OAuth authentication required' in error_msg or 'headless' in error_msg.lower():
+                        raise RuntimeError(
+                            "Google OAuth authentication is required to read Google Docs. "
+                            "Please use the 'Login with Google' button in the web UI to authenticate, "
+                            "or upload a token.pickle file. "
+                            "See FIX_HEADLESS_AUTH.md for instructions."
+                        ) from e
+                    raise
+            
             # Extract document ID if URL is provided
             if '/' in doc_url or 'docs.google.com' in doc_url:
                 doc_id = self.extract_doc_id_from_url(doc_url)
@@ -596,6 +641,9 @@ class GoogleFormGenerator:
                 doc_id = doc_url
             
             # Get document content
+            if not self.docs_service:
+                raise RuntimeError("Google Docs service is not initialized. Please authenticate first.")
+            
             doc = self.docs_service.documents().get(documentId=doc_id).execute()
             
             # Extract text from document

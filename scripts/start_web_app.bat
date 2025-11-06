@@ -7,7 +7,8 @@ echo   AI-Powered Google Form Creator - Web Application
 echo ================================================================
 echo.
 
-python run_app.py
+cd /d "%~dp0\.."
+python scripts\run_app.py
 
 pause
 

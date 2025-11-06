@@ -68,3 +68,6 @@ Thumbs.db
 # Production
 *.pid
 *.sock
+
+# Documentation (keep README.md in root, all others in docs/)
+# Note: All .md files except README.md should be in docs/ folder
