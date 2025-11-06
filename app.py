@@ -13,6 +13,14 @@ from contextlib import redirect_stdout
 from datetime import datetime
 from ai_form_creator import AIFormCreator
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not installed, skip loading .env file
+    pass
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -46,7 +54,18 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'csv', 'xlsx', 'xls'}
 
 # Gemini API Key - Load from environment variable (support both names)
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY', '')
+# Strip whitespace to avoid issues with copy-paste
+GEMINI_API_KEY = (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY', '')).strip()
+
+# Log API key status at startup (for debugging)
+if GEMINI_API_KEY:
+    api_key_preview = GEMINI_API_KEY[:10] + "..." if len(GEMINI_API_KEY) > 10 else "***"
+    print(f"🔑 GEMINI_API_KEY loaded: {api_key_preview} (length: {len(GEMINI_API_KEY)})")
+    # Validate API key format (should start with "AIza")
+    if not GEMINI_API_KEY.startswith('AIza'):
+        print("⚠️  Warning: API key doesn't start with 'AIza' - may be invalid")
+else:
+    print("⚠️  GEMINI_API_KEY not found in environment variables")
 
 # Initialize AI Form Creator
 ai_creator = None
@@ -99,13 +118,18 @@ def init_ai_creator():
             print("   Get your key from: https://aistudio.google.com/app/apikey")
             return False
         
+        # Log API key status (first few characters only for security)
+        api_key_preview = GEMINI_API_KEY[:10] + "..." if len(GEMINI_API_KEY) > 10 else "***"
+        print(f"🔑 Attempting to initialize AI Creator with API key: {api_key_preview}")
+        
         try:
-            # Pass None to let AIFormCreator check environment variables itself
-            ai_creator = AIFormCreator(GEMINI_API_KEY if GEMINI_API_KEY else None)
+            # Pass the API key directly
+            ai_creator = AIFormCreator(GEMINI_API_KEY)
+            print("✅ AI Creator initialized successfully")
             return True
         except ValueError as e:
             error_msg = str(e)
-            print(f"❌ Error initializing AI Creator: {error_msg}")
+            print(f"❌ Error initializing AI Creator (ValueError): {error_msg}")
             if "API key" in error_msg.lower() or "invalid" in error_msg.lower():
                 print(f"   Your GEMINI_API_KEY may be invalid or expired.")
                 print(f"   Get a new key at: https://aistudio.google.com/app/apikey")
@@ -113,6 +137,11 @@ def init_ai_creator():
         except Exception as e:
             error_msg = str(e)
             error_lower = error_msg.lower()
+            
+            # Log the full error for debugging
+            print(f"❌ Error initializing AI Creator (Exception): {error_msg}")
+            import traceback
+            traceback.print_exc()
             
             # Check if it's an OAuth/browser authentication error
             if 'browser' in error_lower or 'runnable' in error_lower or 'oauth' in error_lower or 'authentication failed' in error_lower:

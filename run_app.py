@@ -8,6 +8,14 @@ import sys
 import webbrowser
 from threading import Timer
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv not installed, skip loading .env file
+    pass
+
 def check_dependencies():
     """Check if required dependencies are installed."""
     try:

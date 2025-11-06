@@ -24,6 +24,10 @@ class GeminiFormGenerator:
             import os
             api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
         
+        # Strip whitespace to avoid issues
+        if api_key:
+            api_key = api_key.strip()
+        
         if not api_key:
             raise ValueError(
                 "No API key found. Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable. "

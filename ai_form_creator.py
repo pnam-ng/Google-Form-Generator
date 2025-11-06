@@ -48,6 +48,31 @@ class AIFormCreator:
         # Return structure for preview
         return form_structure
     
+    def generate_form_structure_from_text(self, text: str) -> dict:
+        """
+        Generate form structure from text input using AI.
+        
+        Args:
+            text: User's text describing the form requirements
+        
+        Returns:
+            Dictionary containing form structure
+        """
+        print("\n" + "="*70)
+        print("🤖 Generating form structure using Gemini AI...")
+        print("="*70)
+        
+        # Generate form structure from text
+        try:
+            form_structure = self.gemini.generate_from_text(text)
+            print("✅ Form structure generated successfully!")
+        except Exception as e:
+            print(f"❌ Error generating form structure: {e}")
+            raise
+        
+        # Return structure for preview
+        return form_structure
+    
     def generate_form_structure_from_google_doc(self, doc_url: str) -> dict:
         """
         Generate form structure from Google Docs link.

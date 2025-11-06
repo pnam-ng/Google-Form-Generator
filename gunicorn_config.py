@@ -6,7 +6,10 @@ import multiprocessing
 import os
 
 # Server socket
-bind = f"0.0.0.0:{os.getenv('PORT', '5000')}"
+# Render sets PORT environment variable, use it or default to 5000
+port = os.getenv('PORT', '5000')
+bind = f"0.0.0.0:{port}"
+print(f"🌐 Gunicorn binding to: {bind} (PORT env var: {os.getenv('PORT', 'not set')})")
 backlog = 2048
 
 # Worker processes - optimized for free tier (lightweight)
