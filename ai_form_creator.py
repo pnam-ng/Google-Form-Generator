@@ -21,6 +21,9 @@ class AIFormCreator:
             gemini_api_key: Google Gemini API key (optional, will check environment variables if not provided)
         """
         self.gemini = GeminiFormGenerator(gemini_api_key)
+        # Initialize GoogleFormGenerator - it may not be authenticated yet (especially on headless servers)
+        # Authentication will happen when create_form() is called
+        # _authenticate_lazy() won't fail if there's no token, so this should always succeed
         self.form_generator = GoogleFormGenerator()
     
     def create_form_from_text(self, text: str) -> str:

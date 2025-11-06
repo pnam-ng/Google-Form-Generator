@@ -59,6 +59,8 @@ class GoogleFormGenerator:
             # This allows the app to start even if authentication fails initially
             # Authentication will be attempted when create_form() is called
             self.creds = None
+            # Only try to load existing token - don't try to authenticate if no token exists
+            # This prevents browser errors on headless servers like Render
             self._authenticate_lazy()
     
     def _find_credentials_file(self):
@@ -254,7 +256,10 @@ class GoogleFormGenerator:
         self._build_services()
     
     def _authenticate_lazy(self):
-        """Attempt to load existing token without forcing authentication."""
+        """
+        Attempt to load existing token without forcing authentication.
+        This method NEVER raises exceptions - it's safe to call during initialization.
+        """
         # Try to load existing token if available
         if os.path.exists(self.token_file):
             try:
@@ -263,24 +268,44 @@ class GoogleFormGenerator:
                 
                 # Check if token is valid
                 if self.creds and self.creds.valid:
-                    # Build services with existing token
-                    self._build_services()
-                    print("✅ Using existing authentication token")
-                    return
+                    # Try to build services, but don't fail if it doesn't work
+                    try:
+                        self._build_services()
+                        print("✅ Using existing authentication token")
+                        return
+                    except Exception as e:
+                        # If building services fails (e.g., on headless server), that's OK
+                        # We'll authenticate when needed
+                        print(f"⚠️  Could not build services with existing token: {e}")
+                        print("   Will authenticate when creating forms.")
+                        self.creds = None
+                        return
                 elif self.creds and self.creds.expired and self.creds.refresh_token:
                     # Try to refresh
                     try:
                         self.creds.refresh(Request())
-                        self._build_services()
-                        print("✅ Refreshed authentication token")
-                        return
-                    except:
-                        pass
+                        # Try to build services after refresh
+                        try:
+                            self._build_services()
+                            print("✅ Refreshed authentication token")
+                            return
+                        except Exception as e:
+                            print(f"⚠️  Could not build services after refresh: {e}")
+                            self.creds = None
+                            return
+                    except Exception as refresh_error:
+                        print(f"⚠️  Could not refresh token: {refresh_error}")
+                        self.creds = None
             except Exception as e:
+                # Silently handle any errors - don't prevent app startup
                 print(f"⚠️  Could not load existing token: {e}")
+                self.creds = None
         
         # No valid token - will need to authenticate when needed
-        print("⚠️  No valid authentication token found. Authentication will be required on first form creation.")
+        # This is normal on first startup or headless servers
+        # Don't print warning on headless servers to avoid noise
+        if os.getenv('RENDER') is None and os.getenv('DYNO') is None:
+            print("⚠️  No valid authentication token found. Authentication will be required on first form creation.")
         self.creds = None
     
     def _build_services(self):
@@ -289,8 +314,32 @@ class GoogleFormGenerator:
         creds = getattr(self, 'creds', None) or self.user_credentials
         
         if not creds:
-            # Try to authenticate now if not already authenticated
+            # Don't try to authenticate automatically - this should be done via web UI or with existing token
+            # On headless servers, browser-based auth will always fail
+            # Check if we're on a headless server (Render sets RENDER=true, Heroku sets DYNO)
+            # Also check if we're in a production environment without DISPLAY
+            is_headless = (
+                os.getenv('RENDER') is not None or 
+                os.getenv('DYNO') is not None or
+                (os.getenv('DISPLAY') is None and os.getenv('FLASK_ENV') == 'production')
+            )
+            
+            if is_headless:
+                # On headless servers, don't try browser-based auth
+                # Services will be built when user authenticates via web UI
+                raise RuntimeError(
+                    "OAuth authentication required. "
+                    "This is a headless server (Render/Heroku). "
+                    "Please use the 'Login with Google' button in the web UI to authenticate, "
+                    "or upload a token.pickle file. "
+                    "See FIX_HEADLESS_AUTH.md for instructions."
+                )
+            
+            # Only try to authenticate on local development (where browser is available)
+            # This should rarely be reached since _authenticate_lazy() should handle token loading
             if not self.user_credentials:
+                # Only try authentication if we're not on a headless server
+                # This is a fallback for local development
                 try:
                     self._authenticate()
                     creds = self.creds
@@ -332,6 +381,21 @@ class GoogleFormGenerator:
         Returns:
             Form object for adding questions
         """
+        # Ensure services are built before creating form
+        if not self.service or not self.drive_service:
+            try:
+                self._build_services()
+            except RuntimeError as e:
+                error_msg = str(e)
+                if 'OAuth authentication required' in error_msg or 'headless' in error_msg.lower():
+                    raise RuntimeError(
+                        "Google OAuth authentication is required to create forms. "
+                        "Please use the 'Login with Google' button in the web UI to authenticate, "
+                        "or upload a token.pickle file. "
+                        "See FIX_HEADLESS_AUTH.md for instructions."
+                    ) from e
+                raise
+        
         # Create form in Google Drive
         form_metadata = {
             'name': title,
