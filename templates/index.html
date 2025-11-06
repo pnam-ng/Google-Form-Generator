@@ -245,8 +245,11 @@
                     <h2>Form created successfully</h2>
                     <p class="result-message">Your Google Form is ready to use</p>
                     <div class="result-actions">
-                        <a href="#" id="form-url" target="_blank" class="btn-primary">View Form</a>
-                        <a href="#" id="form-edit-url" target="_blank" class="btn-secondary">Edit Form</a>
+                        <a href="#" id="form-edit-url" target="_blank" class="btn-primary">Edit Form</a>
+                        <button class="btn-secondary" id="copy-url-btn" title="Copy form URL to clipboard">
+                            <span class="btn-label">Copy URL</span>
+                            <span class="copy-success" style="display: none;">✓ Copied!</span>
+                        </button>
                         <button class="btn-secondary" id="create-another-btn">Create Another</button>
                     </div>
                 </div>

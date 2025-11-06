@@ -519,8 +519,15 @@ function escapeHtml(text) {
 }
 
 function showSuccess(formUrl, editUrl) {
-    document.getElementById('form-url').href = formUrl;
-    document.getElementById('form-edit-url').href = editUrl;
+    // Only set the edit URL since we removed the View Form button
+    const editUrlElement = document.getElementById('form-edit-url');
+    if (editUrlElement) {
+        editUrlElement.href = editUrl || formUrl.replace('/viewform', '/edit');
+    }
+    
+    // Store form URL for copy functionality
+    window.currentFormUrl = formUrl;
+    
     document.getElementById('result-section').style.display = 'block';
     document.getElementById('error-section').style.display = 'none';
     
@@ -1023,6 +1030,65 @@ function hideResults() {
 }
 
 // Create another button
+// Copy URL button
+const copyUrlBtn = document.getElementById('copy-url-btn');
+if (copyUrlBtn) {
+    copyUrlBtn.addEventListener('click', async () => {
+        if (!window.currentFormUrl) {
+            console.error('No form URL available to copy');
+            return;
+        }
+        
+        try {
+            // Use modern Clipboard API
+            await navigator.clipboard.writeText(window.currentFormUrl);
+            
+            // Show success feedback
+            const btnLabel = copyUrlBtn.querySelector('.btn-label');
+            const copySuccess = copyUrlBtn.querySelector('.copy-success');
+            
+            if (btnLabel && copySuccess) {
+                btnLabel.style.display = 'none';
+                copySuccess.style.display = 'inline';
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    btnLabel.style.display = 'inline';
+                    copySuccess.style.display = 'none';
+                }, 2000);
+            }
+        } catch (err) {
+            // Fallback for older browsers
+            console.error('Failed to copy:', err);
+            // Try fallback method
+            const textArea = document.createElement('textarea');
+            textArea.value = window.currentFormUrl;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                // Show success feedback
+                const btnLabel = copyUrlBtn.querySelector('.btn-label');
+                const copySuccess = copyUrlBtn.querySelector('.copy-success');
+                if (btnLabel && copySuccess) {
+                    btnLabel.style.display = 'none';
+                    copySuccess.style.display = 'inline';
+                    setTimeout(() => {
+                        btnLabel.style.display = 'inline';
+                        copySuccess.style.display = 'none';
+                    }, 2000);
+                }
+            } catch (fallbackErr) {
+                console.error('Fallback copy failed:', fallbackErr);
+                alert('Failed to copy URL. Please copy manually: ' + window.currentFormUrl);
+            }
+            document.body.removeChild(textArea);
+        }
+    });
+}
+
 document.getElementById('create-another-btn').addEventListener('click', () => {
     hideResults();
     document.getElementById('text-input').value = '';

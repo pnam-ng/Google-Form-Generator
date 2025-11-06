@@ -1,0 +1,171 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign-In Help - FormGeneration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_components.css') }}">
+    <style>
+        .help-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        .help-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .help-section h2 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        .help-section h3 {
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+        .help-section p {
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        .help-section ul {
+            list-style: disc;
+            padding-left: 1.5rem;
+            margin: 1rem 0;
+        }
+        .help-section ul li {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+        .help-section ol {
+            list-style: decimal;
+            padding-left: 1.5rem;
+            margin: 1rem 0;
+        }
+        .help-section ol li {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+        .back-button {
+            display: inline-block;
+            margin-top: 2rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--radius);
+            transition: background 0.2s;
+        }
+        .back-button:hover {
+            background: var(--primary-hover);
+        }
+        .tip-box {
+            background: #f0f7ff;
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: var(--radius);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-wrapper">
+                <div class="header-brand">
+                    <h1>Sign-In Help</h1>
+                </div>
+                <div id="auth-section" class="auth-section">
+                    {% if user_logged_in %}
+                    <div class="auth-info">
+                        <span class="user-email">{{ user_email }}</span>
+                        <button class="btn-auth btn-logout" onclick="logout()">Logout</button>
+                    </div>
+                    {% else %}
+                    <a href="/auth/login" class="btn-auth btn-login">Sign in</a>
+                    {% endif %}
+                </div>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <div class="help-container">
+                <div class="help-section">
+                    <h2>Sign-In Troubleshooting Guide</h2>
+                    <p>If you're having trouble signing in with your Google Account, follow these simple steps to resolve common issues.</p>
+                </div>
+
+                <div class="help-section">
+                    <h2>1. "Google hasn't verified this app" Warning</h2>
+                    <p>If you see a warning page from Google saying the app hasn't been verified:</p>
+                    <ol>
+                        <li>Click on <strong>"Advanced"</strong> at the bottom of the page</li>
+                        <li>Click <strong>"Go to FormGeneration (unsafe)"</strong> to continue</li>
+                        <li>You'll be taken to a page where you can grant permissions</li>
+                        <li>Click <strong>"Allow"</strong> to proceed</li>
+                    </ol>
+                    <div class="tip-box">
+                        <strong>Note:</strong> This warning appears because the app is new. It's safe to proceed if you trust the application.
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h2>2. Can't Sign In</h2>
+                    <p>If you're unable to sign in, try these steps:</p>
+                    <ol>
+                        <li>Make sure you're using a supported web browser (Chrome, Firefox, Edge, or Safari)</li>
+                        <li>Clear your browser cache and cookies</li>
+                        <li>Try signing in using an incognito or private window</li>
+                        <li>Make sure JavaScript is enabled in your browser</li>
+                        <li>Check that you're not blocking pop-ups or redirects</li>
+                    </ol>
+                </div>
+
+                <div class="help-section">
+                    <h2>3. Access Denied</h2>
+                    <p>If you see an "Access Denied" message:</p>
+                    <ul>
+                        <li>Your Google account may need to be added as a test user</li>
+                        <li>Contact the administrator to add your email address</li>
+                        <li>Make sure you're using the correct Google account</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h2>4. General Tips</h2>
+                    <ul>
+                        <li><strong>Use a modern browser:</strong> Make sure your browser is up to date</li>
+                        <li><strong>Check your internet connection:</strong> Ensure you have a stable internet connection</li>
+                        <li><strong>Try a different browser:</strong> Sometimes switching browsers helps</li>
+                        <li><strong>Disable browser extensions:</strong> Some extensions can interfere with sign-in</li>
+                        <li><strong>Wait a few minutes:</strong> If you just made changes, wait 2-5 minutes and try again</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h2>Still Having Issues?</h2>
+                    <p>If you've tried all the steps above and still can't sign in:</p>
+                    <ul>
+                        <li>Contact support for assistance</li>
+                        <li>Provide details about what error message you're seeing</li>
+                        <li>Let them know which browser you're using</li>
+                    </ul>
+                </div>
+
+                <a href="/" class="back-button">Back to Home</a>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
