@@ -65,7 +65,10 @@
                     
                     <button class="btn-primary" id="create-from-text-btn">
                         <span class="btn-label">Create Form</span>
-                        <span class="btn-loader" style="display: none;">Creating...</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                            <span class="loading-text">Creating...</span>
+                        </span>
                     </button>
                     
                     <div id="log-console-text" class="log-panel" style="display: none;">
@@ -108,7 +111,10 @@
                     
                     <button class="btn-primary" id="create-from-file-btn" disabled>
                         <span class="btn-label">Create Form</span>
-                        <span class="btn-loader" style="display: none;">Creating...</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                            <span class="loading-text">Creating...</span>
+                        </span>
                     </button>
                     
                     <div id="log-console-file" class="log-panel" style="display: none;">
@@ -152,7 +158,10 @@
                     
                     <button class="btn-primary" id="create-from-docs-btn">
                         <span class="btn-label">Create Form</span>
-                        <span class="btn-loader" style="display: none;">Creating...</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                            <span class="loading-text">Creating...</span>
+                        </span>
                     </button>
                     
                     <div id="log-console-docs" class="log-panel" style="display: none;">
@@ -203,7 +212,10 @@
                     
                     <button class="btn-primary" id="create-from-script-btn">
                         <span class="btn-label">Create Form</span>
-                        <span class="btn-loader" style="display: none;">Creating...</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                            <span class="loading-text">Creating...</span>
+                        </span>
                     </button>
                     
                     <div id="log-console-script" class="log-panel" style="display: none;">
@@ -221,17 +233,48 @@
                         <p>Review and adjust required/optional settings before creating</p>
                     </div>
                     
-                    <div class="preview-actions-bar">
-                        <button class="btn-secondary" id="select-all-required-btn">Set All Required</button>
-                        <button class="btn-secondary" id="select-all-optional-btn">Set All Optional</button>
+                    <div class="preview-controls-bar" id="preview-controls-bar">
+                        <div class="preview-controls-left">
+                            <button class="btn-secondary" id="select-all-required-btn">Set All Required</button>
+                            <button class="btn-secondary" id="select-all-optional-btn">Set All Optional</button>
+                            <button class="btn-secondary" id="toggle-compact-view-btn">Compact View</button>
+                        </div>
+                        <div class="preview-controls-right">
+                            <div class="search-box">
+                                <input type="text" id="question-search" placeholder="Search questions..." class="search-input">
+                                <span class="search-icon">🔍</span>
+                            </div>
+                            <div class="question-counter" id="question-counter">0 / 0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="pagination-controls" id="pagination-controls" style="display: none;">
+                        <button class="btn-pagination" id="prev-page-btn" disabled>← Previous</button>
+                        <div class="pagination-info">
+                            <span id="page-info">Page 1 of 1</span>
+                            <input type="number" id="jump-to-page" min="1" value="1" style="width: 60px; padding: 0.25rem; margin: 0 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                            <span>of <span id="total-pages">1</span></span>
+                        </div>
+                        <button class="btn-pagination" id="next-page-btn">Next →</button>
                     </div>
                     
                     <div id="questions-list" class="questions-list"></div>
                     
+                    <div class="pagination-controls" id="pagination-controls-bottom" style="display: none;">
+                        <button class="btn-pagination" id="prev-page-btn-bottom" disabled>← Previous</button>
+                        <div class="pagination-info">
+                            <span id="page-info-bottom">Page 1 of 1</span>
+                        </div>
+                        <button class="btn-pagination" id="next-page-btn-bottom">Next →</button>
+                    </div>
+                    
                     <div class="action-buttons">
                         <button class="btn-primary" id="create-form-btn">
                             <span class="btn-label">Create Form</span>
-                            <span class="btn-loader" style="display: none;">Creating...</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span>
+                                <span class="loading-text">Creating...</span>
+                            </span>
                         </button>
                         <button class="btn-secondary" id="back-to-edit-btn">Back</button>
                     </div>

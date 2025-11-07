@@ -355,13 +355,14 @@ async function createForm(method, data = null, file = null) {
     
     btn.disabled = true;
     btnText.style.display = 'none';
-    btnLoader.style.display = 'inline';
+    btnLoader.style.display = 'inline-flex';
     
     // Add initial log
     addLogEntry(logContent, 'info', '⏳ Starting form generation...');
     
     try {
         let response;
+        let sessionId = null;
         
         if (method === 'text') {
             response = await fetch('/api/create-from-text', {
@@ -371,6 +372,17 @@ async function createForm(method, data = null, file = null) {
                 },
                 body: JSON.stringify(data)
             });
+            
+            const result = await response.json();
+            sessionId = result.session_id;
+            
+            // Start listening to real-time logs if session_id is provided
+            if (sessionId) {
+                listenToLogs(sessionId, logContent, method);
+            }
+            
+            // Return early - logs will come via SSE
+            return;
         } else if (method === 'file') {
             const formData = new FormData();
             formData.append('file', file);
@@ -518,6 +530,80 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function listenToLogs(sessionId, logContent, method) {
+    const eventSource = new EventSource(`/api/logs/stream/${sessionId}`);
+    
+    eventSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'complete') {
+                // Form generation completed
+                addLogEntry(logContent, 'success', '✅ Form structure generated successfully!');
+                
+                if (data.form_structure) {
+                    window.formStructure = data.form_structure;
+                    showQuestionPreview(data.form_structure);
+                }
+                
+                // Re-enable button
+                const btn = method === 'text' 
+                    ? document.getElementById('create-from-text-btn')
+                    : method === 'file'
+                    ? document.getElementById('create-from-file-btn')
+                    : method === 'docs'
+                    ? document.getElementById('create-from-docs-btn')
+                    : document.getElementById('create-from-script-btn');
+                const btnText = btn?.querySelector('.btn-label');
+                const btnLoader = btn?.querySelector('.btn-loader');
+                
+                if (btn && btnText && btnLoader) {
+                    btn.disabled = false;
+                    btnText.style.display = 'inline';
+                    btnLoader.style.display = 'none';
+                }
+                
+                eventSource.close();
+            } else if (data.type === 'error') {
+                // Error occurred
+                addLogEntry(logContent, 'error', `❌ Error: ${data.error || data.message}`);
+                showError(data.error || data.message || 'An error occurred');
+                
+                // Re-enable button
+                const btn = method === 'text' 
+                    ? document.getElementById('create-from-text-btn')
+                    : method === 'file'
+                    ? document.getElementById('create-from-file-btn')
+                    : method === 'docs'
+                    ? document.getElementById('create-from-docs-btn')
+                    : document.getElementById('create-from-script-btn');
+                const btnText = btn?.querySelector('.btn-label');
+                const btnLoader = btn?.querySelector('.btn-loader');
+                
+                if (btn && btnText && btnLoader) {
+                    btn.disabled = false;
+                    btnText.style.display = 'inline';
+                    btnLoader.style.display = 'none';
+                }
+                
+                eventSource.close();
+            } else if (data.type === 'keepalive') {
+                // Keepalive - do nothing
+            } else {
+                // Regular log entry
+                addLogEntry(logContent, data.type || 'info', data.message, data.timestamp);
+            }
+        } catch (e) {
+            console.error('Error parsing SSE data:', e);
+        }
+    };
+    
+    eventSource.onerror = function(event) {
+        console.error('SSE error:', event);
+        eventSource.close();
+    };
+}
+
 function showSuccess(formUrl, editUrl) {
     // Only set the edit URL since we removed the View Form button
     const editUrlElement = document.getElementById('form-edit-url');
@@ -574,10 +660,39 @@ function showQuestionPreview(formStructure) {
     // Clear previous content
     questionsList.innerHTML = '';
     
-    // Get questions
-    const questions = formStructure && formStructure.questions ? formStructure.questions : [];
+    // Get questions - handle both new sections format and old flat questions format
+    let questions = [];
+    if (formStructure) {
+        // Check for new sections structure first
+        if (formStructure.sections && Array.isArray(formStructure.sections)) {
+            console.log(`📋 Found ${formStructure.sections.length} sections`);
+            // Flatten questions from all sections and question groups
+            formStructure.sections.forEach((section, sectionIdx) => {
+                if (section.question_groups && Array.isArray(section.question_groups)) {
+                    section.question_groups.forEach((group, groupIdx) => {
+                        if (group.questions && Array.isArray(group.questions)) {
+                            group.questions.forEach((q, qIdx) => {
+                                // Add section and group info to question for reference
+                                questions.push({
+                                    ...q,
+                                    _sectionIndex: sectionIdx,
+                                    _groupIndex: groupIdx,
+                                    _questionIndex: qIdx
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+            console.log(`📋 Extracted ${questions.length} questions from sections`);
+        } else if (formStructure.questions && Array.isArray(formStructure.questions)) {
+            // Fall back to old flat questions format
+            questions = formStructure.questions;
+            console.log(`📋 Found ${questions.length} questions (flat format)`);
+        }
+    }
     
-    console.log(`📋 Found ${questions.length} questions to display`);
+    console.log(`📋 Total questions to display: ${questions.length}`);
     console.log('Questions:', questions);
     
     if (questions.length === 0) {
@@ -587,144 +702,24 @@ function showQuestionPreview(formStructure) {
         return;
     }
     
-    questions.forEach((question, index) => {
-        console.log(`Creating question ${index + 1}:`, question);
-        
-        const questionItem = document.createElement('div');
-        questionItem.className = 'question-item';
-        questionItem.dataset.index = index;
-        
-        // Handle required field - use global default setting if not specified
-        const required = question.hasOwnProperty('required') ? Boolean(question.required) : (window.defaultRequiredSetting !== false);
-        
-        const questionText = escapeHtml(question.text || 'Untitled question');
-        const questionType = escapeHtml(question.type || 'text');
-        
-        questionItem.innerHTML = `
-            <div style="display: flex !important; align-items: center !important; gap: 16px; width: 100%; min-height: 60px;">
-                <div style="flex: 1; display: flex; align-items: flex-start; gap: 12px; min-width: 0;">
-                    <div class="question-number">${index + 1}</div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div class="question-text">${questionText}</div>
-                        <div class="question-meta">
-                            <span class="question-type">${questionType}</span>
-                            <span class="${required ? 'required-badge' : 'optional-badge'}" id="badge-${index}">
-                                ${required ? 'Required' : 'Optional'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div id="toggle-wrapper-${index}" style="display: flex !important; visibility: visible !important; opacity: 1 !important; align-items: center; gap: 8px; padding: 10px 14px; background: #f1f5f9 !important; border-radius: 8px; border: 2px solid #cbd5e1 !important; white-space: nowrap; flex-shrink: 0; z-index: 10; min-width: 150px; position: relative;">
-                    <span style="font-size: 0.9rem; font-weight: 600; color: #475569; display: inline-block !important;">Required:</span>
-                    <label class="toggle-switch" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; position: relative; width: 56px !important; height: 30px !important; cursor: pointer; margin: 0 !important;">
-                        <input type="checkbox" class="required-toggle" data-index="${index}" ${required ? 'checked' : ''} style="opacity: 0; width: 0; height: 0; position: absolute; z-index: 1;">
-                        <span class="toggle-slider" style="position: absolute !important; cursor: pointer !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; background-color: ${required ? '#10b981' : '#cbd5e1'} !important; transition: 0.3s; border-radius: 30px !important; display: block !important; visibility: visible !important; opacity: 1 !important; width: 56px !important; height: 30px !important;">
-                            <span style="position: absolute !important; height: 24px !important; width: 24px !important; left: ${required ? '26px' : '3px'} !important; bottom: 3px !important; background-color: white !important; transition: 0.3s; border-radius: 50% !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; display: block !important; visibility: visible !important;"></span>
-                        </span>
-                    </label>
-                </div>
-            </div>
-        `;
-        
-        questionsList.appendChild(questionItem);
-        console.log(`✅ Question ${index + 1} added to DOM`);
-        
-        // Verify toggle exists and is visible after adding
-        const toggleWrapper = questionItem.querySelector(`#toggle-wrapper-${index}`);
-        const toggle = questionItem.querySelector('.required-toggle');
-        const toggleSwitch = questionItem.querySelector('.toggle-switch');
-        const toggleSlider = questionItem.querySelector('.toggle-slider');
-        
-        if (!toggleWrapper) {
-            console.error(`❌ Toggle wrapper not found for question ${index + 1}`);
-        } else {
-            const computedStyle = window.getComputedStyle(toggleWrapper);
-            console.log(`✅ Toggle wrapper found for question ${index + 1}:`, {
-                display: computedStyle.display,
-                visibility: computedStyle.visibility,
-                opacity: computedStyle.opacity,
-                width: computedStyle.width,
-                height: computedStyle.height
-            });
-            // Force visible
-            toggleWrapper.style.display = 'flex';
-            toggleWrapper.style.visibility = 'visible';
-            toggleWrapper.style.opacity = '1';
-        }
-        
-        if (!toggle) {
-            console.error(`❌ Toggle checkbox not found for question ${index + 1}`);
-        } else {
-            console.log(`✅ Toggle checkbox found for question ${index + 1}, checked: ${toggle.checked}`);
-        }
-        
-        if (!toggleSwitch) {
-            console.error(`❌ Toggle switch element not found for question ${index + 1}`);
-        } else {
-            toggleSwitch.style.display = 'inline-block';
-            toggleSwitch.style.visibility = 'visible';
-        }
-        
-        if (!toggleSlider) {
-            console.error(`❌ Toggle slider not found for question ${index + 1}`);
-        } else {
-            toggleSlider.style.display = 'block';
-            toggleSlider.style.visibility = 'visible';
-        }
-    });
+    // Initialize pagination and search
+    window.currentQuestions = questions;
+    window.currentPage = 1;
+    window.questionsPerPage = 20;
+    window.isCompactView = false;
+    window.searchFilter = '';
     
-    // Add event listeners to toggles after they're added to DOM
-    setTimeout(() => {
-        const toggles = document.querySelectorAll('.required-toggle');
-        console.log(`Found ${toggles.length} toggles to setup listeners`);
-        
-        toggles.forEach((toggle, toggleIndex) => {
-            toggle.addEventListener('change', (e) => {
-                const index = parseInt(e.target.dataset.index);
-                const badge = document.getElementById(`badge-${index}`);
-                const isRequired = e.target.checked;
-                
-                // Update toggle slider visual
-                const slider = toggle.nextElementSibling;
-                if (slider) {
-                    slider.style.backgroundColor = isRequired ? '#10b981' : '#cbd5e1';
-                    slider.style.display = 'block';
-                    slider.style.visibility = 'visible';
-                    const sliderCircle = slider.querySelector('span');
-                    if (sliderCircle) {
-                        sliderCircle.style.left = isRequired ? '26px' : '3px';
-                        sliderCircle.style.display = 'block';
-                    }
-                }
-                
-                // Also update the wrapper to ensure visibility
-                const wrapper = document.getElementById(`toggle-wrapper-${index}`);
-                if (wrapper) {
-                    wrapper.style.display = 'flex';
-                    wrapper.style.visibility = 'visible';
-                    wrapper.style.opacity = '1';
-                }
-                
-                if (badge) {
-                    if (isRequired) {
-                        badge.className = 'required-badge';
-                        badge.textContent = 'Required';
-                    } else {
-                        badge.className = 'optional-badge';
-                        badge.textContent = 'Optional';
-                    }
-                }
-                
-                // Update form structure
-                if (window.formStructure && window.formStructure.questions && window.formStructure.questions[index]) {
-                    window.formStructure.questions[index].required = isRequired;
-                    console.log(`✅ Question ${index + 1} set to ${isRequired ? 'required' : 'optional'}`);
-                }
-            });
-        });
-        
-        console.log(`✅ All ${toggles.length} toggle listeners setup complete`);
-    }, 100);
+    // Setup pagination controls
+    setupPaginationControls(questions.length);
+    
+    // Setup search functionality
+    setupQuestionSearch();
+    
+    // Setup compact view toggle
+    setupCompactViewToggle();
+    
+    // Render questions for current page
+    renderQuestionsPage();
     
     // Show preview section - use multiple methods to ensure it's visible
     previewSection.style.display = 'block';
@@ -762,6 +757,324 @@ function showQuestionPreview(formStructure) {
         setupCreateFormButton();
         setupBackToEditButton();
     }, 50);
+}
+
+function setupPaginationControls(totalQuestions) {
+    const totalPages = Math.ceil(totalQuestions / window.questionsPerPage);
+    window.totalPages = totalPages;
+    
+    // Show/hide pagination based on question count
+    const paginationControls = document.getElementById('pagination-controls');
+    const paginationControlsBottom = document.getElementById('pagination-controls-bottom');
+    
+    if (totalQuestions > window.questionsPerPage) {
+        if (paginationControls) paginationControls.style.display = 'flex';
+        if (paginationControlsBottom) paginationControlsBottom.style.display = 'flex';
+        updatePaginationInfo();
+    } else {
+        if (paginationControls) paginationControls.style.display = 'none';
+        if (paginationControlsBottom) paginationControlsBottom.style.display = 'none';
+    }
+    
+    // Setup pagination buttons
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
+    const nextBtnBottom = document.getElementById('next-page-btn-bottom');
+    const jumpToPage = document.getElementById('jump-to-page');
+    
+    if (prevBtn) {
+        prevBtn.onclick = () => {
+            if (window.currentPage > 1) {
+                window.currentPage--;
+                renderQuestionsPage();
+            }
+        };
+    }
+    
+    if (nextBtn) {
+        nextBtn.onclick = () => {
+            if (window.currentPage < window.totalPages) {
+                window.currentPage++;
+                renderQuestionsPage();
+            }
+        };
+    }
+    
+    if (prevBtnBottom) {
+        prevBtnBottom.onclick = () => {
+            if (window.currentPage > 1) {
+                window.currentPage--;
+                renderQuestionsPage();
+            }
+        };
+    }
+    
+    if (nextBtnBottom) {
+        nextBtnBottom.onclick = () => {
+            if (window.currentPage < window.totalPages) {
+                window.currentPage++;
+                renderQuestionsPage();
+            }
+        };
+    }
+    
+    if (jumpToPage) {
+        jumpToPage.max = window.totalPages;
+        jumpToPage.onchange = (e) => {
+            const page = parseInt(e.target.value);
+            if (page >= 1 && page <= window.totalPages) {
+                window.currentPage = page;
+                renderQuestionsPage();
+            } else {
+                e.target.value = window.currentPage;
+            }
+        };
+    }
+}
+
+function updatePaginationInfo() {
+    const pageInfo = document.getElementById('page-info');
+    const pageInfoBottom = document.getElementById('page-info-bottom');
+    const totalPagesEl = document.getElementById('total-pages');
+    const jumpToPage = document.getElementById('jump-to-page');
+    const questionCounter = document.getElementById('question-counter');
+    
+    // Calculate filtered questions count
+    let filteredCount = window.currentQuestions.length;
+    if (window.searchFilter) {
+        filteredCount = window.currentQuestions.filter((q, idx) => {
+            const questionText = (q.text || '').toLowerCase();
+            const questionNum = (idx + 1).toString();
+            return questionText.includes(window.searchFilter) || questionNum.includes(window.searchFilter);
+        }).length;
+    }
+    
+    const start = filteredCount > 0 ? (window.currentPage - 1) * window.questionsPerPage + 1 : 0;
+    const end = Math.min(window.currentPage * window.questionsPerPage, filteredCount);
+    
+    if (pageInfo) {
+        pageInfo.textContent = `Page ${window.currentPage} of ${window.totalPages || 1}`;
+    }
+    if (pageInfoBottom) {
+        pageInfoBottom.textContent = `Page ${window.currentPage} of ${window.totalPages || 1}`;
+    }
+    if (totalPagesEl) {
+        totalPagesEl.textContent = window.totalPages || 1;
+    }
+    if (jumpToPage) {
+        jumpToPage.value = window.currentPage;
+    }
+    if (questionCounter) {
+        if (filteredCount === window.currentQuestions.length) {
+            questionCounter.textContent = `${start}-${end} / ${window.currentQuestions.length}`;
+        } else {
+            questionCounter.textContent = `${start}-${end} / ${filteredCount} (${window.currentQuestions.length} total)`;
+        }
+    }
+    
+    // Update button states
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
+    const nextBtnBottom = document.getElementById('next-page-btn-bottom');
+    
+    if (prevBtn) prevBtn.disabled = window.currentPage === 1;
+    if (nextBtn) nextBtn.disabled = window.currentPage === window.totalPages;
+    if (prevBtnBottom) prevBtnBottom.disabled = window.currentPage === 1;
+    if (nextBtnBottom) nextBtnBottom.disabled = window.currentPage === window.totalPages;
+}
+
+function setupQuestionSearch() {
+    const searchInput = document.getElementById('question-search');
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', (e) => {
+        window.searchFilter = e.target.value.toLowerCase().trim();
+        window.currentPage = 1; // Reset to first page on search
+        renderQuestionsPage();
+    });
+}
+
+function setupCompactViewToggle() {
+    const toggleBtn = document.getElementById('toggle-compact-view-btn');
+    if (!toggleBtn) return;
+    
+    toggleBtn.addEventListener('click', () => {
+        window.isCompactView = !window.isCompactView;
+        const questionsList = document.getElementById('questions-list');
+        if (questionsList) {
+            if (window.isCompactView) {
+                questionsList.classList.add('compact');
+                toggleBtn.textContent = 'Expanded View';
+            } else {
+                questionsList.classList.remove('compact');
+                toggleBtn.textContent = 'Compact View';
+            }
+        }
+    });
+}
+
+function renderQuestionsPage() {
+    const questionsList = document.getElementById('questions-list');
+    if (!questionsList || !window.currentQuestions) return;
+    
+    // Clear previous content
+    questionsList.innerHTML = '';
+    
+    // Filter questions based on search
+    let filteredQuestions = window.currentQuestions;
+    if (window.searchFilter) {
+        filteredQuestions = window.currentQuestions.filter((q, idx) => {
+            const questionText = (q.text || '').toLowerCase();
+            const questionNum = (idx + 1).toString();
+            return questionText.includes(window.searchFilter) || questionNum.includes(window.searchFilter);
+        });
+    }
+    
+    // Calculate pagination
+    const totalFiltered = filteredQuestions.length;
+    const totalPages = Math.ceil(totalFiltered / window.questionsPerPage);
+    window.totalPages = totalPages;
+    
+    // Adjust current page if needed
+    if (window.currentPage > totalPages && totalPages > 0) {
+        window.currentPage = totalPages;
+    }
+    
+    const start = (window.currentPage - 1) * window.questionsPerPage;
+    const end = Math.min(start + window.questionsPerPage, totalFiltered);
+    const pageQuestions = filteredQuestions.slice(start, end);
+    
+    // Update pagination info
+    updatePaginationInfo();
+    
+    // Render questions for current page
+    pageQuestions.forEach((question, pageIndex) => {
+        const actualIndex = window.currentQuestions.indexOf(question);
+        renderQuestionItem(question, actualIndex, questionsList);
+    });
+    
+    // Setup toggle listeners for rendered questions
+    setTimeout(() => {
+        setupQuestionToggles();
+    }, 50);
+}
+
+function renderQuestionItem(question, index, container) {
+    const questionItem = document.createElement('div');
+    questionItem.className = 'question-item';
+    questionItem.dataset.index = index;
+    
+    // Handle required field - use global default setting if not specified
+    const required = question.hasOwnProperty('required') ? Boolean(question.required) : (window.defaultRequiredSetting !== false);
+    
+    const questionText = escapeHtml(question.text || 'Untitled question');
+    const questionType = escapeHtml(question.type || 'text');
+    
+    questionItem.innerHTML = `
+        <div style="display: flex !important; align-items: center !important; gap: 16px; width: 100%; min-height: 60px;">
+            <div style="flex: 1; display: flex; align-items: flex-start; gap: 12px; min-width: 0;">
+                <div class="question-number">${index + 1}</div>
+                <div style="flex: 1; min-width: 0;">
+                    <div class="question-text">${questionText}</div>
+                    <div class="question-meta">
+                        <span class="question-type">${questionType}</span>
+                        <span class="${required ? 'required-badge' : 'optional-badge'}" id="badge-${index}">
+                            ${required ? 'Required' : 'Optional'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div id="toggle-wrapper-${index}" style="display: flex !important; visibility: visible !important; opacity: 1 !important; align-items: center; gap: 8px; padding: 10px 14px; background: #f1f5f9 !important; border-radius: 8px; border: 2px solid #cbd5e1 !important; white-space: nowrap; flex-shrink: 0; z-index: 10; min-width: 150px; position: relative;">
+                <span style="font-size: 0.9rem; font-weight: 600; color: #475569; display: inline-block !important;">Required:</span>
+                <label class="toggle-switch" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; position: relative; width: 56px !important; height: 30px !important; cursor: pointer; margin: 0 !important;">
+                    <input type="checkbox" class="required-toggle" data-index="${index}" ${required ? 'checked' : ''} style="opacity: 0; width: 0; height: 0; position: absolute; z-index: 1;">
+                    <span class="toggle-slider" style="position: absolute !important; cursor: pointer !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; background-color: ${required ? '#10b981' : '#cbd5e1'} !important; transition: 0.3s; border-radius: 30px !important; display: block !important; visibility: visible !important; opacity: 1 !important; width: 56px !important; height: 30px !important;">
+                        <span style="position: absolute !important; height: 24px !important; width: 24px !important; left: ${required ? '26px' : '3px'} !important; bottom: 3px !important; background-color: white !important; transition: 0.3s; border-radius: 50% !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; display: block !important; visibility: visible !important;"></span>
+                    </span>
+                </label>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(questionItem);
+}
+
+function setupQuestionToggles() {
+    const toggles = document.querySelectorAll('.required-toggle');
+    console.log(`Found ${toggles.length} toggles to setup listeners`);
+    
+    toggles.forEach((toggle) => {
+        // Remove existing listeners by cloning
+        const newToggle = toggle.cloneNode(true);
+        toggle.parentNode.replaceChild(newToggle, toggle);
+        
+        newToggle.addEventListener('change', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const badge = document.getElementById(`badge-${index}`);
+            const isRequired = e.target.checked;
+            
+            // Update toggle slider visual
+            const slider = newToggle.nextElementSibling;
+            if (slider) {
+                slider.style.backgroundColor = isRequired ? '#10b981' : '#cbd5e1';
+                slider.style.display = 'block';
+                slider.style.visibility = 'visible';
+                const sliderCircle = slider.querySelector('span');
+                if (sliderCircle) {
+                    sliderCircle.style.left = isRequired ? '26px' : '3px';
+                    sliderCircle.style.display = 'block';
+                }
+            }
+            
+            // Also update the wrapper to ensure visibility
+            const wrapper = document.getElementById(`toggle-wrapper-${index}`);
+            if (wrapper) {
+                wrapper.style.display = 'flex';
+                wrapper.style.visibility = 'visible';
+                wrapper.style.opacity = '1';
+            }
+            
+            if (badge) {
+                if (isRequired) {
+                    badge.className = 'required-badge';
+                    badge.textContent = 'Required';
+                } else {
+                    badge.className = 'optional-badge';
+                    badge.textContent = 'Optional';
+                }
+            }
+            
+            // Update form structure - handle both sections and flat questions format
+            if (window.formStructure) {
+                const question = window.currentQuestions && window.currentQuestions[index];
+                if (question) {
+                    if (window.formStructure.sections && Array.isArray(window.formStructure.sections)) {
+                        // New sections format
+                        if (question._sectionIndex !== undefined) {
+                            const section = window.formStructure.sections[question._sectionIndex];
+                            if (section && section.question_groups && section.question_groups[question._groupIndex]) {
+                                const group = section.question_groups[question._groupIndex];
+                                if (group.questions && group.questions[question._questionIndex]) {
+                                    group.questions[question._questionIndex].required = isRequired;
+                                    console.log(`✅ Question ${index + 1} set to ${isRequired ? 'required' : 'optional'}`);
+                                }
+                            }
+                        }
+                    } else if (window.formStructure.questions && Array.isArray(window.formStructure.questions)) {
+                        // Old flat format
+                        if (window.formStructure.questions[index]) {
+                            window.formStructure.questions[index].required = isRequired;
+                            console.log(`✅ Question ${index + 1} set to ${isRequired ? 'required' : 'optional'}`);
+                        }
+                    }
+                }
+            }
+        });
+    });
+    
+    console.log(`✅ All ${toggles.length} toggle listeners setup complete`);
 }
 
 // Setup bulk action buttons - wait for DOM to be ready
@@ -899,7 +1212,7 @@ function setupCreateFormButton() {
             
             btn.disabled = true;
             btnText.style.display = 'none';
-            btnLoader.style.display = 'inline';
+            btnLoader.style.display = 'inline-flex';
             
             try {
                 const response = await fetch('/api/create-form-with-questions', {

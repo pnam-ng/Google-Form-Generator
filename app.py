@@ -5,7 +5,10 @@ Cross-platform web UI for non-technical users
 
 import os
 import sys
-from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, Response, stream_with_context
+import json
+import threading
+import queue
 from werkzeug.utils import secure_filename
 import traceback
 import io
@@ -71,22 +74,34 @@ else:
 # Initialize AI Form Creator
 ai_creator = None
 
+# Global log queue for real-time streaming
+log_queues = {}
+
 class LogCapture:
     """Capture logs during form creation."""
-    def __init__(self):
+    def __init__(self, log_queue=None):
         self.logs = []
         self.buffer = io.StringIO()
+        self.log_queue = log_queue  # Queue for real-time streaming
     
     def write(self, message):
         """Capture print statements."""
         if message.strip():
             timestamp = datetime.now().strftime("%H:%M:%S")
-            self.logs.append({
+            log_entry = {
                 'timestamp': timestamp,
                 'message': message.strip(),
                 'type': self._determine_type(message)
-            })
+            }
+            self.logs.append(log_entry)
             self.buffer.write(message)
+            
+            # Stream log in real-time via queue
+            if self.log_queue:
+                try:
+                    self.log_queue.put(log_entry, timeout=0.1)
+                except:
+                    pass  # Ignore errors in streaming
     
     def flush(self):
         """Flush buffer."""
@@ -207,7 +222,11 @@ def help_page():
 @app.route('/api/create-from-text', methods=['POST'])
 def create_from_text():
     """Create form from text input."""
-    log_capture = LogCapture()
+    import uuid
+    session_id = str(uuid.uuid4())
+    log_queue = queue.Queue()
+    log_queues[session_id] = log_queue
+    log_capture = LogCapture(log_queue=log_queue)
     
     try:
         data = request.get_json()
@@ -217,7 +236,8 @@ def create_from_text():
             return jsonify({
                 'success': False,
                 'error': 'Text input is required',
-                'logs': []
+                'logs': [],
+                'session_id': session_id
             }), 400
         
         if not init_ai_creator():
@@ -229,45 +249,100 @@ def create_from_text():
             return jsonify({
                 'success': False,
                 'error': error_msg,
-                'logs': []
+                'logs': [],
+                'session_id': session_id
             }), 500
         
-        # Capture logs during form structure generation
-        with redirect_stdout(log_capture):
-            log_capture.write("📝 Starting form generation process...\n")
-            log_capture.write("🤖 Analyzing text input with Gemini AI...\n")
-            
-            # Generate form structure
-            form_structure = ai_creator.generate_form_structure_from_text(text)
-            
-            log_capture.write("✅ Form structure generated successfully!\n")
-            log_capture.write(f"📋 Found {len(form_structure.get('questions', []))} questions\n")
+        # Run form generation in a thread to allow real-time streaming
+        def generate_form():
+            try:
+                with redirect_stdout(log_capture):
+                    log_capture.write("📝 Starting form generation process...\n")
+                    log_capture.write("🤖 Analyzing text input with Gemini AI...\n")
+                    
+                    # Generate form structure
+                    form_structure = ai_creator.generate_form_structure_from_text(text)
+                    
+                    log_capture.write("✅ Form structure generated successfully!\n")
+                    sections = form_structure.get('sections', [])
+                    questions = form_structure.get('questions', [])
+                    if sections:
+                        total_q = sum(len(group.get('questions', [])) for section in sections for group in section.get('question_groups', []))
+                        log_capture.write(f"📋 Found {len(sections)} sections with {total_q} questions\n")
+                    else:
+                        log_capture.write(f"📋 Found {len(questions)} questions\n")
+                    
+                    # Signal completion
+                    log_queue.put({'type': 'complete', 'form_structure': form_structure})
+            except Exception as e:
+                log_capture.write(f"❌ Error: {str(e)}\n")
+                log_queue.put({'type': 'error', 'error': str(e)})
+        
+        # Start generation in background thread
+        thread = threading.Thread(target=generate_form)
+        thread.daemon = True
+        thread.start()
         
         return jsonify({
             'success': True,
-            'form_structure': form_structure,
-            'message': 'Form structure generated successfully!',
-            'logs': log_capture.get_logs()
+            'message': 'Form generation started',
+            'session_id': session_id
         })
         
-    except ImportError as e:
-        log_capture.write(f"❌ Error: {str(e)}\n")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'suggestion': 'Please install required dependencies. See terminal for details.',
-            'logs': log_capture.get_logs()
-        }), 400
     except Exception as e:
         error_msg = str(e)
         log_capture.write(f"❌ Error: {error_msg}\n")
-        print(f"Error creating form: {error_msg}")
-        print(traceback.format_exc())
+        log_queue.put({'type': 'error', 'error': error_msg})
         return jsonify({
             'success': False,
             'error': error_msg,
-            'logs': log_capture.get_logs()
+            'logs': log_capture.get_logs(),
+            'session_id': session_id
         }), 500
+    finally:
+        # Clean up after a delay
+        def cleanup():
+            import time
+            time.sleep(60)  # Keep queue for 60 seconds
+            if session_id in log_queues:
+                del log_queues[session_id]
+        threading.Thread(target=cleanup, daemon=True).start()
+
+@app.route('/api/logs/stream/<session_id>')
+def stream_logs(session_id):
+    """Stream logs in real-time using Server-Sent Events."""
+    def generate():
+        if session_id not in log_queues:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
+            return
+        
+        log_queue = log_queues[session_id]
+        
+        while True:
+            try:
+                # Get log entry with timeout
+                log_entry = log_queue.get(timeout=1)
+                
+                if log_entry.get('type') == 'complete':
+                    # Send completion signal
+                    yield f"data: {json.dumps({'type': 'complete', 'form_structure': log_entry.get('form_structure')})}\n\n"
+                    break
+                elif log_entry.get('type') == 'error':
+                    # Send error signal
+                    yield f"data: {json.dumps({'type': 'error', 'error': log_entry.get('error')})}\n\n"
+                    break
+                else:
+                    # Send log entry
+                    yield f"data: {json.dumps(log_entry)}\n\n"
+                    
+            except queue.Empty:
+                # Send keepalive
+                yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                break
+    
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 @app.route('/api/create-from-file', methods=['POST'])
 def create_from_file():
@@ -321,7 +396,14 @@ def create_from_file():
                 form_structure = ai_creator.generate_form_structure_from_file(filepath)
                 
                 log_capture.write("✅ Form structure generated successfully!\n")
-                log_capture.write(f"📋 Found {len(form_structure.get('questions', []))} questions\n")
+                # Handle both new sections format and old flat questions format
+                sections = form_structure.get('sections', [])
+                questions = form_structure.get('questions', [])
+                if sections:
+                    total_q = sum(len(group.get('questions', [])) for section in sections for group in section.get('question_groups', []))
+                    log_capture.write(f"📋 Found {len(sections)} sections with {total_q} questions\n")
+                else:
+                    log_capture.write(f"📋 Found {len(questions)} questions\n")
             
             return jsonify({
                 'success': True,
@@ -393,10 +475,48 @@ def create_form_with_questions():
             # Extract form info
             title = form_structure.get('title', 'AI Generated Form')
             description = form_structure.get('description', '')
+            
+            # Support both new sections format and old flat questions format
+            sections = form_structure.get('sections', [])
             questions = form_structure.get('questions', [])
             
-            log_capture.write(f"📋 Form Title: {title}\n")
-            log_capture.write(f"❓ Number of questions: {len(questions)}\n")
+            # If sections exist, flatten questions from sections
+            if sections:
+                all_questions = []
+                for section_idx, section in enumerate(sections):
+                    section_title = section.get('title', '')
+                    section_desc = section.get('description', '')
+                    question_groups = section.get('question_groups', [])
+                    
+                    # Add section header as description item (if not first section)
+                    if section_idx > 0 and (section_title or section_desc):
+                        # For now, we'll add section info as a description before questions
+                        # Google Forms API doesn't directly support section headers, so we'll use descriptions
+                        pass
+                    
+                    # Extract questions from all groups in this section
+                    for group in question_groups:
+                        group_title = group.get('title', '')
+                        group_desc = group.get('description', '')
+                        group_questions = group.get('questions', [])
+                        
+                        # Add group title/description as question prefix if needed
+                        for q in group_questions:
+                            # Add section context to question if needed
+                            if section_title and not q.get('text', '').startswith(section_title):
+                                # Optionally prefix with section info
+                                pass
+                            all_questions.append(q)
+                
+                questions = all_questions
+                total_questions = len(questions)
+                log_capture.write(f"📋 Form Title: {title}\n")
+                log_capture.write(f"📑 Sections: {len(sections)}\n")
+                log_capture.write(f"❓ Total questions: {total_questions}\n")
+            else:
+                total_questions = len(questions)
+                log_capture.write(f"📋 Form Title: {title}\n")
+                log_capture.write(f"❓ Number of questions: {total_questions}\n")
             
             # Get user credentials (for per-user authentication)
             user_creds = get_user_credentials()
@@ -411,6 +531,28 @@ def create_form_with_questions():
             
             # Create form
             form = form_generator.create_form(title, description)
+            
+            # Add sections with descriptions if using new format
+            if sections:
+                for section_idx, section in enumerate(sections):
+                    section_title = section.get('title', '')
+                    section_desc = section.get('description', '')
+                    
+                    # Add section description as a description item (Google Forms supports description items)
+                    if section_idx > 0 and section_desc:
+                        # Add page break before new section (except first)
+                        try:
+                            # Add description item for section
+                            form.add_description_item(f"{section_title}\n\n{section_desc}" if section_title else section_desc)
+                        except:
+                            # If add_description_item doesn't exist, skip
+                            pass
+                    elif section_idx == 0 and section_desc:
+                        # Update main form description with first section description
+                        try:
+                            form_generator.update_form_info(form.form_id, title, section_desc)
+                        except:
+                            pass
             
             # Add questions with updated required settings
             log_capture.write("\n➕ Adding questions...\n")
@@ -550,8 +692,15 @@ def create_from_docs():
                         ) from auth_error
                     raise
             
-            log_capture.write("✅ Form structure generated successfully!\n")
-            log_capture.write(f"📋 Found {len(form_structure.get('questions', []))} questions\n")
+                log_capture.write("✅ Form structure generated successfully!\n")
+                # Handle both new sections format and old flat questions format
+                sections = form_structure.get('sections', [])
+                questions = form_structure.get('questions', [])
+                if sections:
+                    total_q = sum(len(group.get('questions', [])) for section in sections for group in section.get('question_groups', []))
+                    log_capture.write(f"📋 Found {len(sections)} sections with {total_q} questions\n")
+                else:
+                    log_capture.write(f"📋 Found {len(questions)} questions\n")
         
         return jsonify({
             'success': True,

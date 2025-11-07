@@ -36,72 +36,185 @@ class GeminiFormGenerator:
         
         self.api_key = api_key
         genai.configure(api_key=api_key)
-        # Try different model names - use the best available
-        model_names = [
-            'gemini-2.5-flash',  # Preferred model
+        
+        # PRIMARY MODEL: gemini-2.5-flash is the main and preferred model
+        # Fallback models are only used if the primary model is unavailable
+        primary_model = 'gemini-2.5-flash'
+        fallback_models = [
             'gemini-2.0-flash-exp',
             'gemini-1.5-flash',
             'gemini-1.5-pro',
             'gemini-pro'
         ]
+        
         self.model = None
         last_error = None
-        for model_name in model_names:
-            try:
-                self.model = genai.GenerativeModel(model_name)
-                print(f"✅ Using Gemini model: {model_name}")
-                break
-            except Exception as e:
-                last_error = str(e)
-                print(f"⚠️  Could not use {model_name}: {last_error}")
-                continue
+        
+        # Try primary model first
+        try:
+            self.model = genai.GenerativeModel(primary_model)
+            print(f"✅ Using PRIMARY Gemini model: {primary_model}")
+        except Exception as e:
+            last_error = str(e)
+            print(f"⚠️  Primary model {primary_model} unavailable: {last_error}")
+            print(f"🔄 Trying fallback models...")
+            
+            # Try fallback models only if primary fails
+            for model_name in fallback_models:
+                try:
+                    self.model = genai.GenerativeModel(model_name)
+                    print(f"✅ Using FALLBACK Gemini model: {model_name}")
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"⚠️  Could not use {model_name}: {last_error}")
+                    continue
         
         if self.model is None:
-            error_msg = f"Could not initialize any Gemini model. "
+            error_msg = f"Could not initialize Gemini model. "
+            error_msg += f"Primary model ({primary_model}) and all fallback models failed. "
             if last_error:
                 error_msg += f"Last error: {last_error}. "
             error_msg += "Please check your API key is valid and has access to Gemini API."
             raise ValueError(error_msg)
         
         # System prompt for form generation
-        self.system_prompt = """You are an expert at creating Google Forms for multiple choice English exams. 
-When given content (text, documents, exam papers), analyze it and generate a comprehensive exam form structure.
+        self.system_prompt = """You are an expert at creating Google Forms for English reading and listening exams. 
+When given content (text, documents, exam papers), analyze it and generate a comprehensive exam form structure that matches standard IELTS/TOEFL format.
 
 Your response must be in JSON format with the following structure:
 {
     "title": "Form Title",
     "description": "Form description",
-    "questions": [
+    "sections": [
         {
-            "text": "Question text",
-            "type": "choice",
-            "required": true,
-            "options": ["option A", "option B", "option C", "option D"]
+            "title": "Section title (e.g., 'READING PASSAGE 1')",
+            "description": "Section description (e.g., reading passage text, instructions)",
+            "question_groups": [
+                {
+                    "title": "Question group title (e.g., 'Questions 1–5')",
+                    "description": "Optional group description/instructions",
+                    "questions": [
+                        {
+                            "text": "Question text",
+                            "type": "choice" or "text",
+                            "required": true,
+                            "options": ["option A", "option B", "option C", "option D"] (for choice type) or [] (for text type)
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }
 
+IMPORTANT STRUCTURE NOTES:
+- ALWAYS use "sections" array (even if document has no clear sections, create one section)
+- Each section can have a title (e.g., "READING PASSAGE 1") and description (the actual reading passage text)
+- Use "question_groups" to group related questions (e.g., "Questions 1–5", "Questions 6-9")
+- Questions within groups should be in the "questions" array
+- If document has no clear sections, create one section titled "Section 1" with all questions in one group
+- For backward compatibility, you can also include a flat "questions" array at the root level, but "sections" is preferred
+
+Question types:
+- "choice": Multiple choice question with options (A, B, C, D)
+- "text": Fill-in-the-blank or short answer question where user types the answer (has blanks like ……………………… or ______)
+
 PRIMARY USE CASE:
-This application is designed to help create Google Forms for multiple choice English exams from documents.
-- Each question should be of type "choice" (multiple choice with single answer)
+This application is designed to help create Google Forms for English exams from documents.
+- Questions can be either multiple choice (type "choice") or fill-in-the-blank (type "text")
 - All questions should be marked as "required": true
-- Each question should have multiple options (typically 4 options: A, B, C, D)
+- Multiple choice questions should have options (typically 3-4 options: A, B, C, D or A, B, C)
+- Fill-in-the-blank questions should use type "text" and have NO options
+
+CRITICAL REQUIREMENTS:
+1. You MUST extract ALL questions from the document. If the document says it has 40 questions, you MUST create exactly 40 questions.
+2. Count the questions as you extract them to ensure completeness.
+3. Do NOT skip any questions, even if they appear in different sections or formats.
+4. Verify the total number of questions matches what the document indicates.
+
+QUESTION TYPE DETECTION:
+You must identify TWO types of questions:
+
+TYPE 1: MULTIPLE CHOICE QUESTIONS (type: "choice")
+- These questions have multiple options labeled A, B, C, D (or a, b, c, d, or 1, 2, 3, 4)
+- Example: "11 Before Queen Elizabeth I visited the castle in 1576, A repairs were carried out... B a new building was constructed... C a fire damaged..."
+- For these: Use type "choice" and include all options in the "options" array
+
+TYPE 2: FILL-IN-THE-BLANK QUESTIONS (type: "text")
+- These questions have blanks represented by dots (………………………), underscores (______), or spaces
+- They do NOT have multiple choice options (A, B, C, D)
+- Example: "was born in Scotland in 1831 – father was a 9 …………………………"
+- Example: "people bought Henderson's photos because photography took up considerable time and the 10 ……………………… was heavy"
+- For these: Use type "text" and set "options" to an empty array [] or omit it
+- The question text should include the blank (keep the dots/underscores as part of the question text)
 
 QUESTION DETECTION RULES:
-When analyzing the input content to identify exam questions, follow these rules:
-1. Identify questions by the fact that the beginning of the question will have an ordinal number (1. Question ..., 2. Question ..., etc.)
+When analyzing the input content to identify exam questions, follow these rules STRICTLY:
+1. Identify questions by the fact that the beginning of the question will have an ordinal number:
+   - Multiple choice: "1. Question ...", "2. Question ...", "11 Question ..." (number followed by period or space)
+   - Fill-in-the-blank: "9 ………………………", "10 ………………………" (number followed by dots/blank)
+   - Paragraph matching: "1. A natural phenomenon..." (questions asking which paragraph contains information)
 2. If the question after the number is 1 line, the question will be the whole line.
-3. A question only has a number if the number is followed by periods (e.g., "1." or "2."). Numbers without periods are not question markers.
-4. After each question, identify the multiple choice options (typically labeled as A, B, C, D or a, b, c, d, or 1, 2, 3, 4)
-5. Extract the question text and all its corresponding options as a single question entry
+3. A question number can appear in these formats:
+   - With period: "1.", "2.", "11."
+   - With space: "11 ", "12 " (followed by question text)
+   - With dots/blank: "9 ………………………", "10 ………………………" (fill-in-the-blank format)
+   - Bold formatting: "**1.**" or "**1.**" (common in formatted documents)
+4. Questions may be numbered sequentially (1, 2, 3...) or in ranges (1-10, 11-15, 16-20, etc.). Extract ALL of them.
+5. For multiple choice questions: After each question, identify the multiple choice options (typically labeled as A, B, C, D or a, b, c, d, or 1, 2, 3, 4)
+6. For fill-in-the-blank questions: The question text contains blanks (……………………… or ______) and has NO options. The number may appear before or within the question text with the blank.
+7. For paragraph matching questions: Questions asking "Which paragraph contains..." should be type "text" (short answer) where students type the paragraph letter (A, B, C, D, E, F)
+8. Extract the question text and all its corresponding options (if any) as a single question entry
+9. Some questions may span multiple lines - capture the complete question text including any preceding context
+10. For fill-in-the-blank questions like "was born in Scotland in 1831 – father was a 9 …………………………", include the full sentence with the number and blank in the question text
+11. Questions that ask to match statements to paragraphs or people should be type "text" (short answer) where students type the answer
 
-QUESTION FORMAT:
-- Question text should include the full question statement
-- Options should be extracted from the document (typically 4 options per question)
-- Remove the option labels (A, B, C, D) from the option text when creating the options array
-- Each question must have at least 2 options, typically 4 options for English exams
+QUESTION FORMAT HANDLING:
+- Question text should include the full question statement (may span multiple lines)
+- For multiple choice: Options should be extracted from the document (typically 3-4 options per question)
+- For multiple choice: Remove the option labels (A, B, C, D) from the option text when creating the options array
+- For fill-in-the-blank: Keep the blank markers (……………………… or ______) in the question text
+- For fill-in-the-blank: Do NOT include any options array, or set it to empty []
+- Each multiple choice question must have at least 2 options, typically 3-4 options for English exams
 
-Generate the exam form structure based on the content provided. Extract all questions and their options accurately."""
+SECTION AND READING PASSAGE HANDLING:
+- Documents may be divided into sections with reading passages (e.g., "READING PASSAGE 1", "READING PASSAGE 2", "READING PASSAGE 3")
+- Each reading passage should be a separate section with:
+  - Section title: The passage identifier (e.g., "READING PASSAGE 1")
+  - Section description: The full reading passage text (paragraphs A, B, C, D, E, F, etc.)
+- Questions related to each passage should be grouped within that section's question_groups
+- Question groups should be titled with question ranges (e.g., "Questions 1–5", "Questions 6-9", "Questions 10-13")
+- Extract questions from ALL sections and passages
+- Do not stop after one section - continue through all sections until all questions are extracted
+- If questions reference paragraphs (e.g., "Which paragraph contains..."), include the full question text with paragraph references
+
+QUESTION GROUPING:
+- Group questions logically by their question number ranges
+- Use descriptive group titles like "Questions 1–5", "Questions 6-9", etc.
+- If instructions specify a grouping (e.g., "Questions 1–5" with specific instructions), create a separate question group
+- Each question group can have an optional description for instructions (e.g., "Reading Passage 1 has 5 paragraphs, A – E. Which paragraph contains...")
+
+VALIDATION:
+Before finalizing your response:
+1. Count the total number of questions extracted across all sections
+2. Verify it matches the expected count (e.g., if document mentions 40 questions, ensure you have 40)
+3. For multiple choice questions: Ensure each has at least 2 options
+4. For fill-in-the-blank questions: Ensure they have type "text" and no options (or empty options array)
+5. For paragraph matching questions: Ensure they have type "text" (students type paragraph letters)
+6. Check that question numbers are sequential and complete
+7. Verify question types are correctly assigned (choice for questions with options, text for questions with blanks or paragraph matching)
+8. Ensure reading passages are included as section descriptions
+9. Verify question groups are properly organized by question ranges
+
+FORM STRUCTURE BEST PRACTICES:
+- Create sections for each major reading passage or listening section
+- Include full reading passage text in section descriptions
+- Group questions logically by their number ranges
+- Use clear section titles (e.g., "READING PASSAGE 1", "READING PASSAGE 2")
+- Maintain question numbering sequence across all sections
+
+Generate the exam form structure based on the content provided. Extract ALL questions, organize them into proper sections with reading passages, and group them logically. Do not miss any questions."""
 
     def generate_from_text(self, text: str) -> Dict[str, Any]:
         """
@@ -115,10 +228,21 @@ Generate the exam form structure based on the content provided. Extract all ques
         """
         prompt = f"""{self.system_prompt}
 
-User Requirements:
+EXAM DOCUMENT CONTENT:
 {text}
 
-Generate a Google Form structure based on the above requirements. Return ONLY valid JSON, no additional text or explanation."""
+CRITICAL INSTRUCTIONS:
+1. Analyze the entire document carefully
+2. Extract ALL questions from all sections
+3. If the document mentions a specific number of questions (e.g., 40 questions), ensure you extract exactly that many
+4. Count your questions before responding to verify completeness
+5. Identify question types correctly:
+   - Questions with options (A, B, C, D) → type "choice" with options array
+   - Questions with blanks (……………………… or ______) and NO options → type "text" with empty options array []
+6. For fill-in-the-blank questions (type "text"), keep the blank markers in the question text
+7. For multiple choice questions (type "choice"), extract all options and remove labels (A, B, C, D)
+
+Generate a Google Form structure based on the exam document above. Return ONLY valid JSON, no additional text or explanation. Ensure ALL questions are included with correct types."""
         
         try:
             response = self.model.generate_content(prompt)
