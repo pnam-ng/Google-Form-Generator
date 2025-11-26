@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style_components.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="app-container">
         <header class="app-header">
@@ -17,14 +19,16 @@
                     <p class="header-subtitle">Create professional Google Forms with AI</p>
                 </div>
                 <div id="auth-section" class="auth-section">
+                    <button id="feedback-btn" class="btn-auth"
+                        style="margin-right: 0.5rem; background: none; border: 1px solid var(--border);">Feedback</button>
                     <a href="/help" class="btn-auth" style="margin-right: 0.5rem; text-decoration: none;">Help</a>
                     {% if user_logged_in %}
-                        <div class="auth-info">
-                            <span class="user-email">{{ user_email }}</span>
-                            <button class="btn-auth btn-logout" onclick="logout()">Logout</button>
-                        </div>
+                    <div class="auth-info">
+                        <span class="user-email">{{ user_email }}</span>
+                        <button class="btn-auth btn-logout" onclick="logout()">Logout</button>
+                    </div>
                     {% else %}
-                        <a href="/auth/login" class="btn-auth btn-login">Sign in</a>
+                    <a href="/auth/login" class="btn-auth btn-login">Sign in</a>
                     {% endif %}
                 </div>
             </div>
@@ -32,29 +36,26 @@
 
         <main class="app-main">
             <div class="tabs-container">
-                <button class="tab active" data-tab="text">Text</button>
+                <button class="tab" data-tab="text">Text</button>
                 <button class="tab" data-tab="file">File</button>
-                <button class="tab" data-tab="docs">Docs</button>
+                <button class="tab active" data-tab="docs">Docs</button>
                 <button class="tab" data-tab="script">Script</button>
             </div>
 
             <!-- Text Input Tab -->
-            <div class="tab-panel active" id="text-tab">
+            <div class="tab-panel" id="text-tab">
                 <div class="panel-content">
                     <div class="panel-header">
                         <h2>Describe your form</h2>
                         <p>Enter your requirements and let AI create a professional form</p>
                     </div>
-                    
+
                     <div class="form-field">
-                        <textarea 
-                            id="text-input" 
-                            class="textarea"
+                        <textarea id="text-input" class="textarea"
                             placeholder="Example: Create a customer feedback form with name, email, rating (1-5), and comments..."
-                            rows="8"
-                        ></textarea>
+                            rows="8"></textarea>
                     </div>
-                    
+
                     <div class="settings-bar">
                         <span class="settings-label">Default setting:</span>
                         <div class="settings-toggle">
@@ -62,7 +63,7 @@
                             <button class="toggle-btn" id="set-default-optional-btn">All Optional</button>
                         </div>
                     </div>
-                    
+
                     <button class="btn-primary" id="create-from-text-btn">
                         <span class="btn-label">Create Form</span>
                         <span class="btn-loader" style="display: none;">
@@ -70,7 +71,7 @@
                             <span class="loading-text">Creating...</span>
                         </span>
                     </button>
-                    
+
                     <div id="log-console-text" class="log-panel" style="display: none;">
                         <div class="log-header">Generation Log</div>
                         <div id="log-content-text" class="log-content"></div>
@@ -85,22 +86,23 @@
                         <h2>Upload document</h2>
                         <p>Upload a file and we'll create a form from its content</p>
                     </div>
-                    
+
                     <div class="form-field">
                         <div class="upload-zone" id="upload-area">
                             <div class="upload-icon">📄</div>
                             <p class="upload-text">Drag and drop your file here</p>
                             <p class="upload-subtext">or click to browse</p>
                             <p class="upload-hint">TXT, PDF, DOCX, XLSX, CSV (Max 16MB)</p>
-                            <input type="file" id="file-input" accept=".txt,.pdf,.docx,.doc,.csv,.xlsx,.xls" style="display: none;">
+                            <input type="file" id="file-input" accept=".txt,.pdf,.docx,.doc,.csv,.xlsx,.xls"
+                                style="display: none;">
                         </div>
-                        
+
                         <div id="file-info" class="file-preview" style="display: none;">
                             <span class="file-name"></span>
                             <button class="btn-remove" id="remove-file-btn">×</button>
                         </div>
                     </div>
-                    
+
                     <div class="settings-bar">
                         <span class="settings-label">Default setting:</span>
                         <div class="settings-toggle">
@@ -108,7 +110,7 @@
                             <button class="toggle-btn" id="set-default-optional-btn-file">All Optional</button>
                         </div>
                     </div>
-                    
+
                     <button class="btn-primary" id="create-from-file-btn" disabled>
                         <span class="btn-label">Create Form</span>
                         <span class="btn-loader" style="display: none;">
@@ -116,7 +118,7 @@
                             <span class="loading-text">Creating...</span>
                         </span>
                     </button>
-                    
+
                     <div id="log-console-file" class="log-panel" style="display: none;">
                         <div class="log-header">Generation Log</div>
                         <div id="log-content-file" class="log-content"></div>
@@ -125,20 +127,16 @@
             </div>
 
             <!-- Google Docs Link Tab -->
-            <div class="tab-panel" id="docs-tab">
+            <div class="tab-panel active" id="docs-tab">
                 <div class="panel-content">
                     <div class="panel-header">
                         <h2>Google Docs link</h2>
                         <p>Paste a link to a Google Docs document</p>
                     </div>
-                    
+
                     <div class="form-field">
-                        <input 
-                            type="text" 
-                            id="docs-url-input" 
-                            placeholder="https://docs.google.com/document/d/..."
-                            class="input"
-                        />
+                        <input type="text" id="docs-url-input" placeholder="https://docs.google.com/document/d/..."
+                            class="input" />
                         <div class="field-hint">
                             <p><strong>Supported formats:</strong></p>
                             <ul>
@@ -147,7 +145,7 @@
                             </ul>
                         </div>
                     </div>
-                    
+
                     <div class="settings-bar">
                         <span class="settings-label">Default setting:</span>
                         <div class="settings-toggle">
@@ -155,7 +153,7 @@
                             <button class="toggle-btn" id="set-default-optional-btn-docs">All Optional</button>
                         </div>
                     </div>
-                    
+
                     <button class="btn-primary" id="create-from-docs-btn">
                         <span class="btn-label">Create Form</span>
                         <span class="btn-loader" style="display: none;">
@@ -163,7 +161,7 @@
                             <span class="loading-text">Creating...</span>
                         </span>
                     </button>
-                    
+
                     <div id="log-console-docs" class="log-panel" style="display: none;">
                         <div class="log-header">Generation Log</div>
                         <div id="log-content-docs" class="log-content"></div>
@@ -178,7 +176,7 @@
                         <h2>Form script</h2>
                         <p>Upload a script file or paste the code directly</p>
                     </div>
-                    
+
                     <div class="form-field">
                         <div class="upload-zone" id="script-upload-area">
                             <div class="upload-icon">📜</div>
@@ -188,20 +186,16 @@
                             <input type="file" id="script-file-input" accept=".gs,.js,.json" style="display: none;">
                         </div>
                     </div>
-                    
+
                     <div class="divider">
                         <span>or</span>
                     </div>
-                    
+
                     <div class="form-field">
-                        <textarea 
-                            id="script-text-input" 
-                            class="textarea code-textarea"
-                            placeholder='// Google Apps Script or JSON format...'
-                            rows="12"
-                        ></textarea>
+                        <textarea id="script-text-input" class="textarea code-textarea"
+                            placeholder='// Google Apps Script or JSON format...' rows="12"></textarea>
                     </div>
-                    
+
                     <div class="settings-bar">
                         <span class="settings-label">Default setting:</span>
                         <div class="settings-toggle">
@@ -209,7 +203,7 @@
                             <button class="toggle-btn" id="set-default-optional-btn-script">All Optional</button>
                         </div>
                     </div>
-                    
+
                     <button class="btn-primary" id="create-from-script-btn">
                         <span class="btn-label">Create Form</span>
                         <span class="btn-loader" style="display: none;">
@@ -217,7 +211,7 @@
                             <span class="loading-text">Creating...</span>
                         </span>
                     </button>
-                    
+
                     <div id="log-console-script" class="log-panel" style="display: none;">
                         <div class="log-header">Generation Log</div>
                         <div id="log-content-script" class="log-content"></div>
@@ -232,7 +226,7 @@
                         <h2>Review questions</h2>
                         <p>Review and adjust required/optional settings before creating</p>
                     </div>
-                    
+
                     <div class="preview-controls-bar" id="preview-controls-bar">
                         <div class="preview-controls-left">
                             <button class="btn-secondary" id="select-all-required-btn">Set All Required</button>
@@ -241,25 +235,27 @@
                         </div>
                         <div class="preview-controls-right">
                             <div class="search-box">
-                                <input type="text" id="question-search" placeholder="Search questions..." class="search-input">
+                                <input type="text" id="question-search" placeholder="Search questions..."
+                                    class="search-input">
                                 <span class="search-icon">🔍</span>
                             </div>
                             <div class="question-counter" id="question-counter">0 / 0</div>
                         </div>
                     </div>
-                    
+
                     <div class="pagination-controls" id="pagination-controls" style="display: none;">
                         <button class="btn-pagination" id="prev-page-btn" disabled>← Previous</button>
                         <div class="pagination-info">
                             <span id="page-info">Page 1 of 1</span>
-                            <input type="number" id="jump-to-page" min="1" value="1" style="width: 60px; padding: 0.25rem; margin: 0 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
+                            <input type="number" id="jump-to-page" min="1" value="1"
+                                style="width: 60px; padding: 0.25rem; margin: 0 0.5rem; border: 1px solid var(--border); border-radius: 4px;">
                             <span>of <span id="total-pages">1</span></span>
                         </div>
                         <button class="btn-pagination" id="next-page-btn">Next →</button>
                     </div>
-                    
+
                     <div id="questions-list" class="questions-list"></div>
-                    
+
                     <div class="pagination-controls" id="pagination-controls-bottom" style="display: none;">
                         <button class="btn-pagination" id="prev-page-btn-bottom" disabled>← Previous</button>
                         <div class="pagination-info">
@@ -267,7 +263,7 @@
                         </div>
                         <button class="btn-pagination" id="next-page-btn-bottom">Next →</button>
                     </div>
-                    
+
                     <div class="action-buttons">
                         <button class="btn-primary" id="create-form-btn">
                             <span class="btn-label">Create Form</span>
@@ -317,6 +313,26 @@
         </footer>
     </div>
 
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Send Feedback</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Help us improve! Your feedback will be automatically created as a GitHub issue.</p>
+                <textarea id="feedback-text" placeholder="Describe your issue or suggestion..." rows="5"></textarea>
+                <div id="feedback-status" class="status-message" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-modal">Cancel</button>
+                <button id="submit-feedback-btn" class="btn-primary">Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
+
 </html>

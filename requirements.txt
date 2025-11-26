@@ -13,3 +13,4 @@ python-docx>=1.0.0  # For Word documents (.docx, .doc)
 # pandas>=2.0.0       # For Excel/CSV files (.xlsx, .xls, .csv)
 # openpyxl>=3.0.0    # For Excel files (.xlsx)
 
+requests>=2.31.0
