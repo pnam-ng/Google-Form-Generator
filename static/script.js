@@ -888,16 +888,32 @@ function updatePaginationInfo() {
 function setupQuestionSearch() {
     const searchInput = document.getElementById('question-search');
     if (!searchInput) return;
-    toggleBtn.addEventListener('click', () => {
+
+    searchInput.addEventListener('input', (e) => {
+        window.searchFilter = e.target.value.toLowerCase();
+        window.currentPage = 1; // Reset to first page on search
+        renderQuestionsPage();
+    });
+}
+
+function setupCompactViewToggle() {
+    const toggleBtn = document.getElementById('toggle-compact-view-btn');
+    if (!toggleBtn) return;
+
+    // Remove existing listeners to prevent duplicates if called multiple times
+    const newBtn = toggleBtn.cloneNode(true);
+    toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
+
+    newBtn.addEventListener('click', () => {
         window.isCompactView = !window.isCompactView;
         const questionsList = document.getElementById('questions-list');
         if (questionsList) {
             if (window.isCompactView) {
                 questionsList.classList.add('compact');
-                toggleBtn.textContent = 'Expanded View';
+                newBtn.textContent = 'Expanded View';
             } else {
                 questionsList.classList.remove('compact');
-                toggleBtn.textContent = 'Compact View';
+                newBtn.textContent = 'Compact View';
             }
         }
     });
