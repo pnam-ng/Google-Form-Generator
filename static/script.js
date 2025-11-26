@@ -6,7 +6,7 @@ function setupDefaultSettingButtons() {
     // Text tab buttons
     const setRequiredText = document.getElementById('set-default-required-btn');
     const setOptionalText = document.getElementById('set-default-optional-btn');
-    
+
     if (setRequiredText) {
         setRequiredText.addEventListener('click', () => {
             window.defaultRequiredSetting = true;
@@ -14,7 +14,7 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Required');
         });
     }
-    
+
     if (setOptionalText) {
         setOptionalText.addEventListener('click', () => {
             window.defaultRequiredSetting = false;
@@ -22,11 +22,11 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Optional');
         });
     }
-    
+
     // File tab buttons
     const setRequiredFile = document.getElementById('set-default-required-btn-file');
     const setOptionalFile = document.getElementById('set-default-optional-btn-file');
-    
+
     if (setRequiredFile) {
         setRequiredFile.addEventListener('click', () => {
             window.defaultRequiredSetting = true;
@@ -34,7 +34,7 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Required');
         });
     }
-    
+
     if (setOptionalFile) {
         setOptionalFile.addEventListener('click', () => {
             window.defaultRequiredSetting = false;
@@ -42,11 +42,11 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Optional');
         });
     }
-    
+
     // Docs tab buttons
     const setRequiredDocs = document.getElementById('set-default-required-btn-docs');
     const setOptionalDocs = document.getElementById('set-default-optional-btn-docs');
-    
+
     if (setRequiredDocs) {
         setRequiredDocs.addEventListener('click', () => {
             window.defaultRequiredSetting = true;
@@ -54,7 +54,7 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Required');
         });
     }
-    
+
     if (setOptionalDocs) {
         setOptionalDocs.addEventListener('click', () => {
             window.defaultRequiredSetting = false;
@@ -62,11 +62,11 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Optional');
         });
     }
-    
+
     // Script tab buttons
     const setRequiredScript = document.getElementById('set-default-required-btn-script');
     const setOptionalScript = document.getElementById('set-default-optional-btn-script');
-    
+
     if (setRequiredScript) {
         setRequiredScript.addEventListener('click', () => {
             window.defaultRequiredSetting = true;
@@ -74,7 +74,7 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Required');
         });
     }
-    
+
     if (setOptionalScript) {
         setOptionalScript.addEventListener('click', () => {
             window.defaultRequiredSetting = false;
@@ -82,14 +82,14 @@ function setupDefaultSettingButtons() {
             console.log('✅ Default setting: All Optional');
         });
     }
-    
+
     // Initial button state
     updateDefaultButtonStates();
 }
 
 function updateDefaultButtonStates() {
     const isRequired = window.defaultRequiredSetting;
-    
+
     // Update all required buttons
     document.querySelectorAll('#set-default-required-btn, #set-default-required-btn-file, #set-default-required-btn-docs, #set-default-required-btn-script').forEach(btn => {
         if (btn) {
@@ -100,7 +100,7 @@ function updateDefaultButtonStates() {
             }
         }
     });
-    
+
     // Update all optional buttons
     document.querySelectorAll('#set-default-optional-btn, #set-default-optional-btn-file, #set-default-optional-btn-docs, #set-default-optional-btn-script').forEach(btn => {
         if (btn) {
@@ -117,17 +117,17 @@ function updateDefaultButtonStates() {
 document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
         const tabName = btn.dataset.tab;
-        
+
         // Update active tab button
         document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        
+
         // Update active tab content
         document.querySelectorAll('.tab-panel').forEach(content => {
             content.classList.remove('active');
         });
         document.getElementById(`${tabName}-tab`).classList.add('active');
-        
+
         // Hide results
         hideResults();
     });
@@ -164,7 +164,7 @@ uploadArea.addEventListener('dragleave', () => {
 uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
         handleFileSelect(files[0]);
@@ -192,12 +192,12 @@ removeFileBtn.addEventListener('click', () => {
 // Create form from text
 document.getElementById('create-from-text-btn').addEventListener('click', async () => {
     const text = document.getElementById('text-input').value.trim();
-    
+
     if (!text) {
         showError('Please enter some text describing your form requirements.');
         return;
     }
-    
+
     await createForm('text', { text });
 });
 
@@ -207,7 +207,7 @@ document.getElementById('create-from-file-btn').addEventListener('click', async 
         showError('Please select a file to upload.');
         return;
     }
-    
+
     await createForm('file', null, fileInput.files[0]);
 });
 
@@ -216,17 +216,17 @@ const createFromDocsBtn = document.getElementById('create-from-docs-btn');
 if (createFromDocsBtn) {
     createFromDocsBtn.addEventListener('click', async () => {
         const docsUrl = document.getElementById('docs-url-input').value.trim();
-        
+
         if (!docsUrl) {
             showError('Please enter a Google Docs URL.');
             return;
         }
-        
+
         if (!docsUrl.includes('docs.google.com') && !docsUrl.match(/^[a-zA-Z0-9-_]+$/)) {
             showError('Please enter a valid Google Docs URL.');
             return;
         }
-        
+
         await createForm('docs', { url: docsUrl });
     });
 } else {
@@ -243,20 +243,20 @@ if (scriptUploadArea && scriptFileInput) {
     scriptUploadArea.addEventListener('click', () => {
         scriptFileInput.click();
     });
-    
+
     scriptUploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         scriptUploadArea.classList.add('dragover');
     });
-    
+
     scriptUploadArea.addEventListener('dragleave', () => {
         scriptUploadArea.classList.remove('dragover');
     });
-    
+
     scriptUploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         scriptUploadArea.classList.remove('dragover');
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             const file = files[0];
@@ -292,12 +292,12 @@ async function handleScriptFileSelect(file) {
 if (createFromScriptBtn) {
     createFromScriptBtn.addEventListener('click', async () => {
         const scriptText = scriptTextInput.value.trim();
-        
+
         if (!scriptText) {
             showError('Please upload a JSON file or paste the script.');
             return;
         }
-        
+
         try {
             // Try to parse as JSON first
             let scriptData = null;
@@ -307,9 +307,9 @@ if (createFromScriptBtn) {
                 // Not JSON, treat as Google Apps Script
                 scriptData = null;
             }
-            
+
             // Send to backend for parsing
-            await createForm('script', { 
+            await createForm('script', {
                 script_code: scriptText,  // Send raw script code
                 script: scriptData,  // Send parsed JSON if available
                 default_required: window.defaultRequiredSetting !== false
@@ -322,48 +322,48 @@ if (createFromScriptBtn) {
 
 async function createForm(method, data = null, file = null) {
     hideResults();
-    
-    const btn = method === 'text' 
+
+    const btn = method === 'text'
         ? document.getElementById('create-from-text-btn')
         : method === 'file'
-        ? document.getElementById('create-from-file-btn')
-        : method === 'docs'
-        ? document.getElementById('create-from-docs-btn')
-        : document.getElementById('create-from-script-btn');
-    
+            ? document.getElementById('create-from-file-btn')
+            : method === 'docs'
+                ? document.getElementById('create-from-docs-btn')
+                : document.getElementById('create-from-script-btn');
+
     const btnText = btn.querySelector('.btn-label');
     const btnLoader = btn.querySelector('.btn-loader');
-    
+
     // Show log console
-    const logConsole = method === 'text' 
+    const logConsole = method === 'text'
         ? document.getElementById('log-console-text')
         : method === 'file'
-        ? document.getElementById('log-console-file')
-        : method === 'docs'
-        ? document.getElementById('log-console-docs')
-        : document.getElementById('log-console-script');
+            ? document.getElementById('log-console-file')
+            : method === 'docs'
+                ? document.getElementById('log-console-docs')
+                : document.getElementById('log-console-script');
     const logContent = method === 'text'
         ? document.getElementById('log-content-text')
         : method === 'file'
-        ? document.getElementById('log-content-file')
-        : method === 'docs'
-        ? document.getElementById('log-content-docs')
-        : document.getElementById('log-content-script');
-    
+            ? document.getElementById('log-content-file')
+            : method === 'docs'
+                ? document.getElementById('log-content-docs')
+                : document.getElementById('log-content-script');
+
     logConsole.style.display = 'block';
     logContent.innerHTML = '';
-    
+
     btn.disabled = true;
     btnText.style.display = 'none';
     btnLoader.style.display = 'inline-flex';
-    
+
     // Add initial log
     addLogEntry(logContent, 'info', '⏳ Starting form generation...');
-    
+
     try {
         let response;
         let sessionId = null;
-        
+
         if (method === 'text') {
             response = await fetch('/api/create-from-text', {
                 method: 'POST',
@@ -372,21 +372,21 @@ async function createForm(method, data = null, file = null) {
                 },
                 body: JSON.stringify(data)
             });
-            
+
             const result = await response.json();
             sessionId = result.session_id;
-            
+
             // Start listening to real-time logs if session_id is provided
             if (sessionId) {
                 listenToLogs(sessionId, logContent, method);
             }
-            
+
             // Return early - logs will come via SSE
             return;
         } else if (method === 'file') {
             const formData = new FormData();
             formData.append('file', file);
-            
+
             response = await fetch('/api/create-from-file', {
                 method: 'POST',
                 body: formData
@@ -408,7 +408,7 @@ async function createForm(method, data = null, file = null) {
                 body: JSON.stringify(data)
             });
         }
-        
+
         // Check if response is OK (status 200-299)
         if (!response.ok) {
             // Try to parse error response as JSON
@@ -435,12 +435,12 @@ async function createForm(method, data = null, file = null) {
                     message: 'Unable to parse server response. Please check your connection.'
                 };
             }
-            
+
             addLogEntry(logContent, 'error', `❌ Error: ${errorData.error || errorData.message || 'Unknown error'}`);
             showError(errorData.error || errorData.message || 'Failed to create form. Please try again.');
             return;
         }
-        
+
         // Parse JSON response
         let result;
         try {
@@ -459,14 +459,14 @@ async function createForm(method, data = null, file = null) {
             showError('Error parsing server response. Please try again.');
             return;
         }
-        
+
         // Display logs
         if (result.logs && result.logs.length > 0) {
             result.logs.forEach(log => {
                 addLogEntry(logContent, log.type, log.message, log.timestamp);
             });
         }
-        
+
         if (result.success) {
             // For script method, show success directly (no preview needed)
             if (method === 'script') {
@@ -505,21 +505,21 @@ async function createForm(method, data = null, file = null) {
 function addLogEntry(container, type, message, timestamp = null) {
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    
+
     const time = timestamp || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
-    const icon = type === 'error' ? '❌' : 
-                 type === 'success' ? '✅' : 
-                 type === 'warning' ? '⚠️' : 'ℹ️';
-    
+
+    const icon = type === 'error' ? '❌' :
+        type === 'success' ? '✅' :
+            type === 'warning' ? '⚠️' : 'ℹ️';
+
     entry.innerHTML = `
         <span class="timestamp">[${time}]</span>
         <span class="icon">${icon}</span>
         <span class="message">${escapeHtml(message)}</span>
     `;
-    
+
     container.appendChild(entry);
-    
+
     // Auto scroll to bottom
     container.scrollTop = container.scrollHeight;
 }
@@ -532,60 +532,60 @@ function escapeHtml(text) {
 
 function listenToLogs(sessionId, logContent, method) {
     const eventSource = new EventSource(`/api/logs/stream/${sessionId}`);
-    
-    eventSource.onmessage = function(event) {
+
+    eventSource.onmessage = function (event) {
         try {
             const data = JSON.parse(event.data);
-            
+
             if (data.type === 'complete') {
                 // Form generation completed
                 addLogEntry(logContent, 'success', '✅ Form structure generated successfully!');
-                
+
                 if (data.form_structure) {
                     window.formStructure = data.form_structure;
                     showQuestionPreview(data.form_structure);
                 }
-                
+
                 // Re-enable button
-                const btn = method === 'text' 
+                const btn = method === 'text'
                     ? document.getElementById('create-from-text-btn')
                     : method === 'file'
-                    ? document.getElementById('create-from-file-btn')
-                    : method === 'docs'
-                    ? document.getElementById('create-from-docs-btn')
-                    : document.getElementById('create-from-script-btn');
+                        ? document.getElementById('create-from-file-btn')
+                        : method === 'docs'
+                            ? document.getElementById('create-from-docs-btn')
+                            : document.getElementById('create-from-script-btn');
                 const btnText = btn?.querySelector('.btn-label');
                 const btnLoader = btn?.querySelector('.btn-loader');
-                
+
                 if (btn && btnText && btnLoader) {
                     btn.disabled = false;
                     btnText.style.display = 'inline';
                     btnLoader.style.display = 'none';
                 }
-                
+
                 eventSource.close();
             } else if (data.type === 'error') {
                 // Error occurred
                 addLogEntry(logContent, 'error', `❌ Error: ${data.error || data.message}`);
                 showError(data.error || data.message || 'An error occurred');
-                
+
                 // Re-enable button
-                const btn = method === 'text' 
+                const btn = method === 'text'
                     ? document.getElementById('create-from-text-btn')
                     : method === 'file'
-                    ? document.getElementById('create-from-file-btn')
-                    : method === 'docs'
-                    ? document.getElementById('create-from-docs-btn')
-                    : document.getElementById('create-from-script-btn');
+                        ? document.getElementById('create-from-file-btn')
+                        : method === 'docs'
+                            ? document.getElementById('create-from-docs-btn')
+                            : document.getElementById('create-from-script-btn');
                 const btnText = btn?.querySelector('.btn-label');
                 const btnLoader = btn?.querySelector('.btn-loader');
-                
+
                 if (btn && btnText && btnLoader) {
                     btn.disabled = false;
                     btnText.style.display = 'inline';
                     btnLoader.style.display = 'none';
                 }
-                
+
                 eventSource.close();
             } else if (data.type === 'keepalive') {
                 // Keepalive - do nothing
@@ -597,8 +597,8 @@ function listenToLogs(sessionId, logContent, method) {
             console.error('Error parsing SSE data:', e);
         }
     };
-    
-    eventSource.onerror = function(event) {
+
+    eventSource.onerror = function (event) {
         console.error('SSE error:', event);
         eventSource.close();
     };
@@ -610,13 +610,13 @@ function showSuccess(formUrl, editUrl) {
     if (editUrlElement) {
         editUrlElement.href = editUrl || formUrl.replace('/viewform', '/edit');
     }
-    
+
     // Store edit URL for copy functionality (user wants to copy edit URL, not view URL)
     window.currentFormUrl = editUrl || formUrl.replace('/viewform', '/edit');
-    
+
     document.getElementById('result-section').style.display = 'block';
     document.getElementById('error-section').style.display = 'none';
-    
+
     // Scroll to result
     document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -625,7 +625,7 @@ function showError(message) {
     document.getElementById('error-message').textContent = message;
     document.getElementById('error-section').style.display = 'block';
     document.getElementById('result-section').style.display = 'none';
-    
+
     // Scroll to error
     document.getElementById('error-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -636,30 +636,30 @@ function showQuestionPreview(formStructure) {
     const errorSection = document.getElementById('error-section');
     if (resultSection) resultSection.style.display = 'none';
     if (errorSection) errorSection.style.display = 'none';
-    
+
     console.log('=== showQuestionPreview called ===');
     console.log('Form structure:', formStructure);
-    
+
     const previewSection = document.getElementById('question-preview-section');
     const questionsList = document.getElementById('questions-list');
-    
+
     if (!previewSection) {
         console.error('❌ Preview section not found in DOM!');
         alert('Preview section not found. Please refresh the page.');
         return;
     }
-    
+
     if (!questionsList) {
         console.error('❌ Questions list not found in DOM!');
         alert('Questions list not found. Please refresh the page.');
         return;
     }
-    
+
     console.log('✅ Preview section and questions list found');
-    
+
     // Clear previous content
     questionsList.innerHTML = '';
-    
+
     // Get questions - handle both new sections format and old flat questions format
     let questions = [];
     if (formStructure) {
@@ -691,65 +691,65 @@ function showQuestionPreview(formStructure) {
             console.log(`📋 Found ${questions.length} questions (flat format)`);
         }
     }
-    
+
     console.log(`📋 Total questions to display: ${questions.length}`);
     console.log('Questions:', questions);
-    
+
     if (questions.length === 0) {
         questionsList.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px; background: var(--bg-color); border-radius: 12px;"><p>⚠️ No questions found in the form structure.</p><p style="font-size: 0.9rem; margin-top: 8px;">Please check the console for details.</p></div>';
         previewSection.style.display = 'block';
         previewSection.style.visibility = 'visible';
         return;
     }
-    
+
     // Initialize pagination and search
     window.currentQuestions = questions;
     window.currentPage = 1;
     window.questionsPerPage = 20;
     window.isCompactView = false;
     window.searchFilter = '';
-    
+
     // Setup pagination controls
     setupPaginationControls(questions.length);
-    
+
     // Setup search functionality
     setupQuestionSearch();
-    
+
     // Setup compact view toggle
     setupCompactViewToggle();
-    
+
     // Render questions for current page
     renderQuestionsPage();
-    
+
     // Show preview section - use multiple methods to ensure it's visible
     previewSection.style.display = 'block';
     previewSection.style.visibility = 'visible';
     previewSection.style.opacity = '1';
     previewSection.style.height = 'auto';
     previewSection.style.overflow = 'visible';
-    
+
     // Remove any inline display:none
     previewSection.removeAttribute('style');
     previewSection.style.display = 'block';
-    
+
     // Force a reflow to ensure display
     void previewSection.offsetHeight;
-    
+
     console.log(`✅ Preview displayed with ${questions.length} questions`);
     console.log('Preview section:', previewSection);
     console.log('Preview section display style:', window.getComputedStyle(previewSection).display);
     console.log('Preview section visible:', previewSection.offsetHeight > 0);
-    
+
     // Scroll to preview
     setTimeout(() => {
         previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
-    
+
     // Add a visual indicator
     if (questions.length > 0) {
         console.log(`🎯 SUCCESS: Preview should be visible with ${questions.length} questions and toggles!`);
     }
-    
+
     // Setup bulk action buttons now that preview section is visible
     // Use setTimeout to ensure DOM is fully updated
     setTimeout(() => {
@@ -762,11 +762,11 @@ function showQuestionPreview(formStructure) {
 function setupPaginationControls(totalQuestions) {
     const totalPages = Math.ceil(totalQuestions / window.questionsPerPage);
     window.totalPages = totalPages;
-    
+
     // Show/hide pagination based on question count
     const paginationControls = document.getElementById('pagination-controls');
     const paginationControlsBottom = document.getElementById('pagination-controls-bottom');
-    
+
     if (totalQuestions > window.questionsPerPage) {
         if (paginationControls) paginationControls.style.display = 'flex';
         if (paginationControlsBottom) paginationControlsBottom.style.display = 'flex';
@@ -775,14 +775,14 @@ function setupPaginationControls(totalQuestions) {
         if (paginationControls) paginationControls.style.display = 'none';
         if (paginationControlsBottom) paginationControlsBottom.style.display = 'none';
     }
-    
+
     // Setup pagination buttons
     const prevBtn = document.getElementById('prev-page-btn');
     const nextBtn = document.getElementById('next-page-btn');
     const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
     const nextBtnBottom = document.getElementById('next-page-btn-bottom');
     const jumpToPage = document.getElementById('jump-to-page');
-    
+
     if (prevBtn) {
         prevBtn.onclick = () => {
             if (window.currentPage > 1) {
@@ -791,7 +791,7 @@ function setupPaginationControls(totalQuestions) {
             }
         };
     }
-    
+
     if (nextBtn) {
         nextBtn.onclick = () => {
             if (window.currentPage < window.totalPages) {
@@ -800,7 +800,7 @@ function setupPaginationControls(totalQuestions) {
             }
         };
     }
-    
+
     if (prevBtnBottom) {
         prevBtnBottom.onclick = () => {
             if (window.currentPage > 1) {
@@ -809,7 +809,7 @@ function setupPaginationControls(totalQuestions) {
             }
         };
     }
-    
+
     if (nextBtnBottom) {
         nextBtnBottom.onclick = () => {
             if (window.currentPage < window.totalPages) {
@@ -818,7 +818,7 @@ function setupPaginationControls(totalQuestions) {
             }
         };
     }
-    
+
     if (jumpToPage) {
         jumpToPage.max = window.totalPages;
         jumpToPage.onchange = (e) => {
@@ -839,7 +839,7 @@ function updatePaginationInfo() {
     const totalPagesEl = document.getElementById('total-pages');
     const jumpToPage = document.getElementById('jump-to-page');
     const questionCounter = document.getElementById('question-counter');
-    
+
     // Calculate filtered questions count
     let filteredCount = window.currentQuestions.length;
     if (window.searchFilter) {
@@ -849,10 +849,10 @@ function updatePaginationInfo() {
             return questionText.includes(window.searchFilter) || questionNum.includes(window.searchFilter);
         }).length;
     }
-    
+
     const start = filteredCount > 0 ? (window.currentPage - 1) * window.questionsPerPage + 1 : 0;
     const end = Math.min(window.currentPage * window.questionsPerPage, filteredCount);
-    
+
     if (pageInfo) {
         pageInfo.textContent = `Page ${window.currentPage} of ${window.totalPages || 1}`;
     }
@@ -872,13 +872,13 @@ function updatePaginationInfo() {
             questionCounter.textContent = `${start}-${end} / ${filteredCount} (${window.currentQuestions.length} total)`;
         }
     }
-    
+
     // Update button states
     const prevBtn = document.getElementById('prev-page-btn');
     const nextBtn = document.getElementById('next-page-btn');
     const prevBtnBottom = document.getElementById('prev-page-btn-bottom');
     const nextBtnBottom = document.getElementById('next-page-btn-bottom');
-    
+
     if (prevBtn) prevBtn.disabled = window.currentPage === 1;
     if (nextBtn) nextBtn.disabled = window.currentPage === window.totalPages;
     if (prevBtnBottom) prevBtnBottom.disabled = window.currentPage === 1;
@@ -888,18 +888,6 @@ function updatePaginationInfo() {
 function setupQuestionSearch() {
     const searchInput = document.getElementById('question-search');
     if (!searchInput) return;
-    
-    searchInput.addEventListener('input', (e) => {
-        window.searchFilter = e.target.value.toLowerCase().trim();
-        window.currentPage = 1; // Reset to first page on search
-        renderQuestionsPage();
-    });
-}
-
-function setupCompactViewToggle() {
-    const toggleBtn = document.getElementById('toggle-compact-view-btn');
-    if (!toggleBtn) return;
-    
     toggleBtn.addEventListener('click', () => {
         window.isCompactView = !window.isCompactView;
         const questionsList = document.getElementById('questions-list');
@@ -918,10 +906,10 @@ function setupCompactViewToggle() {
 function renderQuestionsPage() {
     const questionsList = document.getElementById('questions-list');
     if (!questionsList || !window.currentQuestions) return;
-    
+
     // Clear previous content
     questionsList.innerHTML = '';
-    
+
     // Filter questions based on search
     let filteredQuestions = window.currentQuestions;
     if (window.searchFilter) {
@@ -931,30 +919,30 @@ function renderQuestionsPage() {
             return questionText.includes(window.searchFilter) || questionNum.includes(window.searchFilter);
         });
     }
-    
+
     // Calculate pagination
     const totalFiltered = filteredQuestions.length;
     const totalPages = Math.ceil(totalFiltered / window.questionsPerPage);
     window.totalPages = totalPages;
-    
+
     // Adjust current page if needed
     if (window.currentPage > totalPages && totalPages > 0) {
         window.currentPage = totalPages;
     }
-    
+
     const start = (window.currentPage - 1) * window.questionsPerPage;
     const end = Math.min(start + window.questionsPerPage, totalFiltered);
     const pageQuestions = filteredQuestions.slice(start, end);
-    
+
     // Update pagination info
     updatePaginationInfo();
-    
+
     // Render questions for current page
     pageQuestions.forEach((question, pageIndex) => {
         const actualIndex = window.currentQuestions.indexOf(question);
         renderQuestionItem(question, actualIndex, questionsList);
     });
-    
+
     // Setup toggle listeners for rendered questions
     setTimeout(() => {
         setupQuestionToggles();
@@ -965,13 +953,13 @@ function renderQuestionItem(question, index, container) {
     const questionItem = document.createElement('div');
     questionItem.className = 'question-item';
     questionItem.dataset.index = index;
-    
+
     // Handle required field - use global default setting if not specified
     const required = question.hasOwnProperty('required') ? Boolean(question.required) : (window.defaultRequiredSetting !== false);
-    
+
     const questionText = escapeHtml(question.text || 'Untitled question');
     const questionType = escapeHtml(question.type || 'text');
-    
+
     questionItem.innerHTML = `
         <div style="display: flex !important; align-items: center !important; gap: 16px; width: 100%; min-height: 60px;">
             <div style="flex: 1; display: flex; align-items: flex-start; gap: 12px; min-width: 0;">
@@ -997,24 +985,24 @@ function renderQuestionItem(question, index, container) {
             </div>
         </div>
     `;
-    
+
     container.appendChild(questionItem);
 }
 
 function setupQuestionToggles() {
     const toggles = document.querySelectorAll('.required-toggle');
     console.log(`Found ${toggles.length} toggles to setup listeners`);
-    
+
     toggles.forEach((toggle) => {
         // Remove existing listeners by cloning
         const newToggle = toggle.cloneNode(true);
         toggle.parentNode.replaceChild(newToggle, toggle);
-        
+
         newToggle.addEventListener('change', (e) => {
             const index = parseInt(e.target.dataset.index);
             const badge = document.getElementById(`badge-${index}`);
             const isRequired = e.target.checked;
-            
+
             // Update toggle slider visual
             const slider = newToggle.nextElementSibling;
             if (slider) {
@@ -1027,7 +1015,7 @@ function setupQuestionToggles() {
                     sliderCircle.style.display = 'block';
                 }
             }
-            
+
             // Also update the wrapper to ensure visibility
             const wrapper = document.getElementById(`toggle-wrapper-${index}`);
             if (wrapper) {
@@ -1035,7 +1023,7 @@ function setupQuestionToggles() {
                 wrapper.style.visibility = 'visible';
                 wrapper.style.opacity = '1';
             }
-            
+
             if (badge) {
                 if (isRequired) {
                     badge.className = 'required-badge';
@@ -1045,7 +1033,7 @@ function setupQuestionToggles() {
                     badge.textContent = 'Optional';
                 }
             }
-            
+
             // Update form structure - handle both sections and flat questions format
             if (window.formStructure) {
                 const question = window.currentQuestions && window.currentQuestions[index];
@@ -1073,7 +1061,7 @@ function setupQuestionToggles() {
             }
         });
     });
-    
+
     console.log(`✅ All ${toggles.length} toggle listeners setup complete`);
 }
 
@@ -1085,11 +1073,11 @@ function setupBulkActionButtons() {
         console.warn('Preview section not found, cannot setup bulk action buttons');
         return;
     }
-    
+
     const selectAllRequiredBtn = previewSection.querySelector('#select-all-required-btn') || document.getElementById('select-all-required-btn');
     const selectAllOptionalBtn = previewSection.querySelector('#select-all-optional-btn') || document.getElementById('select-all-optional-btn');
     const testToggleBtn = previewSection.querySelector('#test-toggle-visibility-btn') || document.getElementById('test-toggle-visibility-btn');
-    
+
     if (selectAllRequiredBtn && !selectAllRequiredBtn.dataset.listenerAdded) {
         selectAllRequiredBtn.dataset.listenerAdded = 'true';
         selectAllRequiredBtn.addEventListener('click', () => {
@@ -1108,7 +1096,7 @@ function setupBulkActionButtons() {
     } else if (!selectAllRequiredBtn) {
         console.warn('⚠️ select-all-required-btn not found');
     }
-    
+
     if (selectAllOptionalBtn && !selectAllOptionalBtn.dataset.listenerAdded) {
         selectAllOptionalBtn.dataset.listenerAdded = 'true';
         selectAllOptionalBtn.addEventListener('click', () => {
@@ -1127,53 +1115,53 @@ function setupBulkActionButtons() {
     } else if (!selectAllOptionalBtn) {
         console.warn('⚠️ select-all-optional-btn not found');
     }
-    
+
     if (testToggleBtn && !testToggleBtn.dataset.listenerAdded) {
         testToggleBtn.dataset.listenerAdded = 'true';
         testToggleBtn.addEventListener('click', () => {
-    console.log('=== TOGGLE VISIBILITY DEBUG ===');
-    const toggles = document.querySelectorAll('.required-toggle');
-    const toggleSwitches = document.querySelectorAll('.toggle-switch');
-    const toggleContainers = document.querySelectorAll('.toggle-container');
-    
-    console.log(`Found ${toggles.length} toggles`);
-    console.log(`Found ${toggleSwitches.length} toggle switches`);
-    console.log(`Found ${toggleContainers.length} toggle containers`);
-    
-    toggleContainers.forEach((container, index) => {
-        const computedStyle = window.getComputedStyle(container);
-        console.log(`Container ${index + 1}:`, {
-            display: computedStyle.display,
-            visibility: computedStyle.visibility,
-            opacity: computedStyle.opacity,
-            width: computedStyle.width,
-            height: computedStyle.height,
-            position: computedStyle.position
-        });
-        
-        // Force show
-        container.style.display = 'flex';
-        container.style.visibility = 'visible';
-        container.style.opacity = '1';
-    });
-    
-    toggleSwitches.forEach((toggleSwitch, index) => {
-        const computedStyle = window.getComputedStyle(toggleSwitch);
-        console.log(`Toggle Switch ${index + 1}:`, {
-            display: computedStyle.display,
-            visibility: computedStyle.visibility,
-            opacity: computedStyle.opacity,
-            width: computedStyle.width,
-            height: computedStyle.height
-        });
-        
-        // Force show
-        toggleSwitch.style.display = 'inline-block';
-        toggleSwitch.style.visibility = 'visible';
-        toggleSwitch.style.opacity = '1';
-    });
-    
-    alert(`Debug complete! Check console.\nFound ${toggles.length} toggles, ${toggleSwitches.length} switches, ${toggleContainers.length} containers.`);
+            console.log('=== TOGGLE VISIBILITY DEBUG ===');
+            const toggles = document.querySelectorAll('.required-toggle');
+            const toggleSwitches = document.querySelectorAll('.toggle-switch');
+            const toggleContainers = document.querySelectorAll('.toggle-container');
+
+            console.log(`Found ${toggles.length} toggles`);
+            console.log(`Found ${toggleSwitches.length} toggle switches`);
+            console.log(`Found ${toggleContainers.length} toggle containers`);
+
+            toggleContainers.forEach((container, index) => {
+                const computedStyle = window.getComputedStyle(container);
+                console.log(`Container ${index + 1}:`, {
+                    display: computedStyle.display,
+                    visibility: computedStyle.visibility,
+                    opacity: computedStyle.opacity,
+                    width: computedStyle.width,
+                    height: computedStyle.height,
+                    position: computedStyle.position
+                });
+
+                // Force show
+                container.style.display = 'flex';
+                container.style.visibility = 'visible';
+                container.style.opacity = '1';
+            });
+
+            toggleSwitches.forEach((toggleSwitch, index) => {
+                const computedStyle = window.getComputedStyle(toggleSwitch);
+                console.log(`Toggle Switch ${index + 1}:`, {
+                    display: computedStyle.display,
+                    visibility: computedStyle.visibility,
+                    opacity: computedStyle.opacity,
+                    width: computedStyle.width,
+                    height: computedStyle.height
+                });
+
+                // Force show
+                toggleSwitch.style.display = 'inline-block';
+                toggleSwitch.style.visibility = 'visible';
+                toggleSwitch.style.opacity = '1';
+            });
+
+            alert(`Debug complete! Check console.\nFound ${toggles.length} toggles, ${toggleSwitches.length} switches, ${toggleContainers.length} containers.`);
         });
         console.log('✅ test-toggle-visibility-btn setup complete');
     } else if (!testToggleBtn) {
@@ -1194,13 +1182,13 @@ function setupCreateFormButton() {
                 showError('Form structure not found. Please try again.');
                 return;
             }
-            
+
             const btn = document.getElementById('create-form-btn');
             const btnText = btn.querySelector('.btn-label');
             const btnLoader = btn.querySelector('.btn-loader');
             const logConsole = document.getElementById('log-console-text');
             const logContent = document.getElementById('log-content-text');
-            
+
             // Show log console if not already visible
             if (logConsole) {
                 logConsole.style.display = 'block';
@@ -1209,11 +1197,11 @@ function setupCreateFormButton() {
                     addLogEntry(logContent, 'info', '⏳ Creating form with your settings...');
                 }
             }
-            
+
             btn.disabled = true;
             btnText.style.display = 'none';
             btnLoader.style.display = 'inline-flex';
-            
+
             try {
                 const response = await fetch('/api/create-form-with-questions', {
                     method: 'POST',
@@ -1224,7 +1212,7 @@ function setupCreateFormButton() {
                         form_structure: window.formStructure
                     })
                 });
-                
+
                 // Check if response is OK
                 if (!response.ok) {
                     let errorData;
@@ -1252,7 +1240,7 @@ function setupCreateFormButton() {
                     showError(errorData.error || errorData.message || 'Failed to create form. Please try again.');
                     return;
                 }
-                
+
                 // Parse JSON response
                 let result;
                 try {
@@ -1275,14 +1263,14 @@ function setupCreateFormButton() {
                     showError('Error parsing server response. Please try again.');
                     return;
                 }
-                
+
                 // Display logs
                 if (result.logs && result.logs.length > 0 && logContent) {
                     result.logs.forEach(log => {
                         addLogEntry(logContent, log.type, log.message, log.timestamp);
                     });
                 }
-                
+
                 if (result.success) {
                     document.getElementById('question-preview-section').style.display = 'none';
                     showSuccess(result.form_url, result.form_url.replace('/viewform', '/edit'));
@@ -1336,7 +1324,7 @@ function hideResults() {
     const resultSection = document.getElementById('result-section');
     const errorSection = document.getElementById('error-section');
     const previewSection = document.getElementById('question-preview-section');
-    
+
     if (resultSection) resultSection.style.display = 'none';
     if (errorSection) errorSection.style.display = 'none';
     // Don't hide preview here - let showQuestionPreview handle it
@@ -1351,19 +1339,19 @@ if (copyUrlBtn) {
             console.error('No form URL available to copy');
             return;
         }
-        
+
         try {
             // Use modern Clipboard API
             await navigator.clipboard.writeText(window.currentFormUrl);
-            
+
             // Show success feedback
             const btnLabel = copyUrlBtn.querySelector('.btn-label');
             const copySuccess = copyUrlBtn.querySelector('.copy-success');
-            
+
             if (btnLabel && copySuccess) {
                 btnLabel.style.display = 'none';
                 copySuccess.style.display = 'inline';
-                
+
                 // Reset after 2 seconds
                 setTimeout(() => {
                     btnLabel.style.display = 'inline';
@@ -1408,7 +1396,7 @@ document.getElementById('create-another-btn').addEventListener('click', () => {
     fileInput.value = '';
     fileInfo.style.display = 'none';
     createFromFileBtn.disabled = true;
-    
+
     // Hide log consoles
     document.getElementById('log-console-text').style.display = 'none';
     document.getElementById('log-console-file').style.display = 'none';
@@ -1418,14 +1406,14 @@ document.getElementById('create-another-btn').addEventListener('click', () => {
     document.getElementById('log-content-file').innerHTML = '';
     document.getElementById('log-content-docs').innerHTML = '';
     document.getElementById('log-content-script').innerHTML = '';
-    
+
     // Clear inputs
     document.getElementById('docs-url-input').value = '';
     document.getElementById('script-text-input').value = '';
     if (document.getElementById('script-file-input')) {
         document.getElementById('script-file-input').value = '';
     }
-    
+
     document.getElementById('text-tab').classList.add('active');
     document.getElementById('file-tab').classList.remove('active');
     document.querySelectorAll('.tab')[0].classList.add('active');
@@ -1442,7 +1430,7 @@ async function checkAuthStatus() {
     try {
         const response = await fetch('/api/auth/status');
         const data = await response.json();
-        
+
         if (data.authenticated) {
             // Update UI if user is logged in
             updateAuthUI(data.user_email);
@@ -1455,7 +1443,7 @@ async function checkAuthStatus() {
 function updateAuthUI(userEmail) {
     const authSection = document.getElementById('auth-section');
     if (!authSection) return;
-    
+
     // Update auth section if needed (for dynamic updates)
     // The initial state is set by server-side template
 }
@@ -1468,7 +1456,7 @@ async function logout() {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (response.ok) {
             // Reload page to update UI
             window.location.reload();
@@ -1486,12 +1474,12 @@ async function logout() {
 // Check auth status and credentials on page load
 document.addEventListener('DOMContentLoaded', async () => {
     checkAuthStatus();
-    
+
     // Also check credentials configuration
     try {
         const response = await fetch('/api/check-credentials');
         const data = await response.json();
-        
+
         if (data.status === 'missing') {
             console.warn('⚠️ Credentials not configured:', data.message);
             // Optionally show a notification to the user
@@ -1509,3 +1497,89 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+
+// Feedback Modal Logic
+document.addEventListener('DOMContentLoaded', () => {
+    const feedbackBtn = document.getElementById('feedback-btn');
+    const feedbackModal = document.getElementById('feedback-modal');
+    const closeButtons = document.querySelectorAll('.close-modal');
+    const submitFeedbackBtn = document.getElementById('submit-feedback-btn');
+    const feedbackText = document.getElementById('feedback-text');
+    const feedbackStatus = document.getElementById('feedback-status');
+
+    if (feedbackBtn && feedbackModal) {
+        // Open modal
+        feedbackBtn.addEventListener('click', () => {
+            feedbackModal.style.display = 'flex';
+            feedbackText.value = ''; // Clear previous text
+            feedbackStatus.style.display = 'none';
+            feedbackText.focus();
+        });
+
+        // Close modal
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                feedbackModal.style.display = 'none';
+            });
+        });
+
+        // Close on click outside
+        window.addEventListener('click', (e) => {
+            if (e.target === feedbackModal) {
+                feedbackModal.style.display = 'none';
+            }
+        });
+
+        // Submit feedback
+        submitFeedbackBtn.addEventListener('click', async () => {
+            const text = feedbackText.value.trim();
+
+            if (!text) {
+                showFeedbackStatus('Please enter your feedback.', 'error');
+                return;
+            }
+
+            // Disable button and show loading
+            submitFeedbackBtn.disabled = true;
+            submitFeedbackBtn.textContent = 'Submitting...';
+            feedbackStatus.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/submit-feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ feedback: text })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showFeedbackStatus('Feedback submitted successfully! Thank you.', 'success');
+                    feedbackText.value = '';
+                    setTimeout(() => {
+                        feedbackModal.style.display = 'none';
+                        feedbackStatus.style.display = 'none';
+                    }, 2000);
+                } else {
+                    showFeedbackStatus(result.error || 'Failed to submit feedback.', 'error');
+                }
+            } catch (error) {
+                showFeedbackStatus('Network error. Please try again.', 'error');
+                console.error('Feedback error:', error);
+            } finally {
+                submitFeedbackBtn.disabled = false;
+                submitFeedbackBtn.textContent = 'Submit Feedback';
+            }
+        });
+
+        function showFeedbackStatus(message, type) {
+            feedbackStatus.textContent = message;
+            feedbackStatus.className = `status-message ${type}`;
+            feedbackStatus.style.display = 'block';
+        }
+    } else {
+        console.warn('Feedback button or modal not found in DOM');
+    }
+});

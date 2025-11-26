@@ -7,6 +7,7 @@ import os
 import sys
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, Response, stream_with_context
 import json
+import requests
 import threading
 import queue
 from werkzeug.utils import secure_filename
@@ -1474,6 +1475,70 @@ def handle_exception(e):
         'message': str(e),
         'details': error_details if os.getenv('DEBUG', 'False').lower() == 'true' else None
     }), 500
+
+@app.route('/api/submit-feedback', methods=['POST'])
+def submit_feedback():
+    """Submit feedback to GitHub Issues."""
+    try:
+        data = request.get_json()
+        feedback_text = data.get('feedback', '').strip()
+        
+        if not feedback_text:
+            return jsonify({
+                'success': False,
+                'error': 'Feedback text is required'
+            }), 400
+            
+        # Get GitHub token from environment
+        github_token = os.getenv('GITHUB_TOKEN')
+        if not github_token:
+            print("❌ Error: GITHUB_TOKEN not set")
+            return jsonify({
+                'success': False,
+                'error': 'Server configuration error: GITHUB_TOKEN not set'
+            }), 500
+            
+        # Create GitHub issue
+        repo_owner = 'pnam-ng'
+        repo_name = 'Google-Form-Generator'
+        url = f'https://api.github.com/repos/{repo_owner}/{repo_name}/issues'
+        
+        headers = {
+            'Authorization': f'token {github_token}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        # Get user email from session
+        user_creds = session.get('user_credentials')
+        user_email = user_creds.get('user_email', 'Anonymous') if user_creds else 'Anonymous'
+
+        payload = {
+            'title': f'Feedback from {user_email}',
+            'body': f"**User Feedback**\n\n{feedback_text}\n\n---\nSubmitted by: {user_email}\n\nSubmitted via AI Form Creator App",
+            'labels': ['feedback', 'user-submitted']
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        
+        if response.status_code == 201:
+            return jsonify({
+                'success': True,
+                'message': 'Feedback submitted successfully',
+                'issue_url': response.json().get('html_url')
+            })
+        else:
+            print(f"❌ Error creating GitHub issue: {response.status_code} - {response.text}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to submit feedback to GitHub: {response.status_code}'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Error in submit_feedback: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     import webbrowser
