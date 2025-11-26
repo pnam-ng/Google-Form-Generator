@@ -19,7 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.agent/
+
 
 # Virtual Environment
 venv/
@@ -72,3 +72,4 @@ Thumbs.db
 
 # Documentation (keep README.md in root, all others in docs/)
 # Note: All .md files except README.md should be in docs/ folder
+.agent/
